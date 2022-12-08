@@ -1,4 +1,4 @@
-package room
+package play
 
 import (
 	"mahjong/mj"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type TableCards struct {
+type Table struct {
 	syncLock      sync.Mutex
 	players       int      //玩家数
 	dice          int      //骰子数
@@ -16,8 +16,8 @@ type TableCards struct {
 	remainLibrary mj.Cards //余牌
 }
 
-func NewTableCards(players, dice int) *TableCards {
-	return &TableCards{
+func NewTable(players, dice int) *Table {
+	return &Table{
 		syncLock:      sync.Mutex{},
 		players:       players,
 		dice:          dice,
@@ -27,8 +27,8 @@ func NewTableCards(players, dice int) *TableCards {
 	}
 }
 
-// Shuffle 随机洗牌
-func (table *TableCards) Shuffle(initLibrary mj.Cards) mj.Cards {
+// Shuffle 洗牌
+func (table *Table) Shuffle(initLibrary mj.Cards) mj.Cards {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(initLibrary), func(i, j int) {
 		initLibrary[i], initLibrary[j] = initLibrary[j], initLibrary[i]
@@ -37,7 +37,7 @@ func (table *TableCards) Shuffle(initLibrary mj.Cards) mj.Cards {
 }
 
 // Dispatch 发牌
-func (table *TableCards) Dispatch(initLibrary mj.Cards) map[int][]int {
+func (table *Table) Dispatch(initLibrary mj.Cards) map[int][]int {
 
 	//等比分4方
 	sideCount := len(initLibrary) / 4
@@ -92,7 +92,7 @@ func (table *TableCards) Dispatch(initLibrary mj.Cards) map[int][]int {
 }
 
 // ForwardAt 从前摸
-func (table *TableCards) ForwardAt() int {
+func (table *Table) ForwardAt() int {
 
 	defer table.syncLock.Unlock()
 
@@ -103,7 +103,7 @@ func (table *TableCards) ForwardAt() int {
 }
 
 // BackwardAt 从后摸
-func (table *TableCards) BackwardAt() int {
+func (table *Table) BackwardAt() int {
 	defer table.syncLock.Unlock()
 
 	table.syncLock.Lock()
@@ -112,7 +112,7 @@ func (table *TableCards) BackwardAt() int {
 	return table.remainLibrary[len(table.remainLibrary)-1]
 }
 
-// ThiefAt 换牌
-func (table *TableCards) ThiefAt(idx int) {
+// ThiefAt 偷牌
+func (table *Table) ThiefAt(idx int) {
 
 }

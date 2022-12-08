@@ -5,26 +5,6 @@ import (
 	"strings"
 )
 
-// TurnAssert 回合判定
-type TurnAssert interface {
-	// HasPair 碰？
-	HasPair(mj int) bool
-	// HasGang 杠？
-	HasGang(mj int) bool
-	// HasList 顺？
-	HasList(mj int) bool
-}
-
-// WinAssert 胡牌判定
-type WinAssert interface {
-	IsWin(mj int) bool
-}
-
-// TingAssert 听牌判定
-type TingAssert interface {
-	AtWin() []int
-}
-
 var defaultABCMapperAsc = [][]int{
 	{1, 2, 3},
 	{2, 3, 4},
