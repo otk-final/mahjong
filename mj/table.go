@@ -1,7 +1,6 @@
-package play
+package mj
 
 import (
-	"mahjong/mj"
 	"math/rand"
 	"sync"
 	"time"
@@ -9,11 +8,16 @@ import (
 
 type Table struct {
 	syncLock      sync.Mutex
-	players       int      //玩家数
-	dice          int      //骰子数
-	fIdx          int      //向前
-	bIdx          int      //向后
-	remainLibrary mj.Cards //余牌
+	players       int   //玩家数
+	dice          int   //骰子数
+	fIdx          int   //向前
+	bIdx          int   //向后
+	remainLibrary Cards //余牌
+}
+
+func NewDice() int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(6) + 1
 }
 
 func NewTable(players, dice int) *Table {
@@ -28,7 +32,7 @@ func NewTable(players, dice int) *Table {
 }
 
 // Shuffle 洗牌
-func (table *Table) Shuffle(initLibrary mj.Cards) mj.Cards {
+func (table *Table) Shuffle(initLibrary Cards) Cards {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(initLibrary), func(i, j int) {
 		initLibrary[i], initLibrary[j] = initLibrary[j], initLibrary[i]
@@ -36,8 +40,8 @@ func (table *Table) Shuffle(initLibrary mj.Cards) mj.Cards {
 	return initLibrary
 }
 
-// Dispatch 发牌
-func (table *Table) Dispatch(initLibrary mj.Cards) map[int][]int {
+// Allocate 发牌
+func (table *Table) Allocate(initLibrary Cards) map[int][]int {
 
 	//等比分4方
 	sideCount := len(initLibrary) / 4
@@ -73,7 +77,7 @@ func (table *Table) Dispatch(initLibrary mj.Cards) map[int][]int {
 	}
 
 	startIdx := 0
-	//发牌 3 * 4 + 1
+	//发牌 共13张 3 * 4 + 1
 	for i := 0; i < 4; i++ {
 		count := 4
 		if i == 3 { //最后轮流一张
@@ -87,7 +91,6 @@ func (table *Table) Dispatch(initLibrary mj.Cards) map[int][]int {
 
 	//记录当前位置
 	table.fIdx = startIdx
-
 	return members
 }
 

@@ -39,7 +39,7 @@ func sameCardGroup(sameCards []int) map[int][]int {
 	return cardGroup
 }
 
-func NewABCMapper(kind Kind, order string) [][]int {
+func NewABCMapper(kind CardKind, order string) [][]int {
 	rate := 0
 	if kind == WanCard { //万 1 - 9
 		rate = 0
@@ -140,7 +140,7 @@ func FindEE(sameCards []int) ([][]int, []int) {
 	return matrix, other
 }
 
-func FilterCards(kind Kind, cards []int) []int {
+func FilterCards(kind CardKind, cards []int) []int {
 	begin, end := 0, 0
 	switch kind {
 	case WanCard:

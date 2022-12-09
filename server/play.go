@@ -1,7 +1,10 @@
 package server
 
 import (
+	"github.com/google/uuid"
+	"mahjong/mj"
 	"mahjong/server/api"
+	"mahjong/server/countdown"
 	"net/http"
 )
 
@@ -11,11 +14,14 @@ type PlayerCtrl struct{}
 func (p *PlayerCtrl) take(w http.ResponseWriter, r *http.Request, body api.TakeCard) (*api.Reply, error) {
 
 	//摸牌
+	tb := mj.Table{}
+
+	tb.ForwardAt()
 
 	//加入牌库
 
-	//通知玩家
-	websocketReply(body.RoomId, body.RoomId, body)
+	//通知当前用户判定
+	websocketNotify("", "", 104, "", api.Empty)
 
 	return nil, nil
 }
@@ -23,41 +29,46 @@ func (p *PlayerCtrl) take(w http.ResponseWriter, r *http.Request, body api.TakeC
 // 出牌
 func (p *PlayerCtrl) put(w http.ResponseWriter, r *http.Request, u api.PutCard) (*api.Reply, error) {
 
-	//出牌
+	//特殊牌判定
 
 	//通知玩家
-
-	//创建确认回执
-
-	//通知玩家
-	for {
-		websocketReply(u.RoomId, "", nil)
+	for i := 0; i < 4; i++ {
+		websocketNotify("", "", 103, "", api.Empty)
 	}
 
+	//通知其他玩家判定确认
+	timerId := uuid.NewString()
+	countdown.New(timerId, 4-1, 30, func(status int, inf *countdown.Timer) {
+		if status == -1 {
+			return
+		}
+		//TODO 无论超时与否，均通知下家进行摸牌
+	})
+
 	return nil, nil
 }
 
-// 吃
-func (p *PlayerCtrl) eat(w http.ResponseWriter, r *http.Request, u api.EatCard) (*api.Reply, error) {
-	return nil, nil
-}
+// 判定
+func (p *PlayerCtrl) reward(w http.ResponseWriter, r *http.Request, u api.RewardCard) (*api.Reply, error) {
 
-// 杠
-func (p *PlayerCtrl) gang(w http.ResponseWriter, r *http.Request, u api.GangCard) (*api.Reply, error) {
-	return nil, nil
-}
+	//吃
+	//碰，
 
-// 碰
-func (p *PlayerCtrl) pair(w http.ResponseWriter, r *http.Request, u api.PairCard) (*api.Reply, error) {
+	//杠，通知当前用户摸牌
+
+	timerId := uuid.NewString()
+	countdown.New("", 4-1, 30, func(status int, inf *countdown.Timer) {
+
+	})
 	return nil, nil
 }
 
 // 胡
-func (p *PlayerCtrl) win(w http.ResponseWriter, r *http.Request, u api.PairCard) (*api.Reply, error) {
+func (p *PlayerCtrl) win(w http.ResponseWriter, r *http.Request, u api.RewardCard) (*api.Reply, error) {
 	return nil, nil
 }
 
 // 跳过
-func (p *PlayerCtrl) skip(w http.ResponseWriter, r *http.Request, u api.PairCard) (*api.Reply, error) {
+func (p *PlayerCtrl) skip(w http.ResponseWriter, r *http.Request, u api.RewardCard) (*api.Reply, error) {
 	return nil, nil
 }

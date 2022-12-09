@@ -1,8 +1,8 @@
 package mj
 
-type Kind string
+type CardKind string
 
-var WanCard Kind = "wan"
+var WanCard CardKind = "wan"
 
 //万 1 - 9
 const (
@@ -17,7 +17,7 @@ const (
 	W9
 )
 
-var TiaoCard Kind = "tiao"
+var TiaoCard CardKind = "tiao"
 
 //条 11 - 19
 const (
@@ -32,7 +32,7 @@ const (
 	L9
 )
 
-var TongCard Kind = "tong"
+var TongCard CardKind = "tong"
 
 //筒 21 - 29
 const (
@@ -47,7 +47,7 @@ const (
 	T9
 )
 
-var FengCard Kind = "feng"
+var FengCard CardKind = "feng"
 
 //风 31 - 34
 const (
@@ -57,7 +57,7 @@ const (
 	NORTH
 )
 
-var OtherCard Kind = "other"
+var OtherCard CardKind = "other"
 
 //中发白 35 - 37
 const (

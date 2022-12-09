@@ -49,8 +49,8 @@ type CardNeighbor []int
 // Cards 默认牌组
 type Cards []int
 
-// LibraryOutWith 指定牌库
-func LibraryOutWith(wind bool, other bool) []int {
+// LoadLibrary 指定牌库
+func LoadLibrary(wind bool, other bool) []int {
 	newLib := make([]int, 0)
 	//filter 东南西北
 	for _, k := range Library {
