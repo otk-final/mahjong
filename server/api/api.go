@@ -50,6 +50,7 @@ type GameInf struct {
 }
 
 type GameConfigure struct {
+	Mode     string
 	Players  int  `json:"players"`
 	HasWind  bool `json:"has_wind"`
 	HasOther bool `json:"has_other"`

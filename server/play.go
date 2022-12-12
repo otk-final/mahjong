@@ -80,23 +80,22 @@ func (p *PlayerCtrl) rewardConfirm(w http.ResponseWriter, r *http.Request, body 
 
 	//房间游戏规则
 	tb := &mj.Table{}
+	tbConfig := &api.GameConfigure{}
 
 	//校验判定事件是否开启
-	mine, player := tb.TurnCheck(userId)
-	reg, err := strategy.Register("")
+	_, player := tb.TurnCheck(userId)
+	reg, err := strategy.Register(tbConfig.Mode)
 	if err != nil {
 		return nil, err
 	}
 
-	// 当前回合动作
-	hs := reg.WithTurn(mine)
-	handler, err := hs.ActionBy(body.Action)
+	handler, err := reg.Handler(body.Action)
 	if err != nil {
 		return nil, err
 	}
 
 	//判定
-	ok := handler.Func(nil, tb)(player, nil, body.WithCards, body.Card)
+	ok := handler.Func(tbConfig, tb)(player, nil, body.WithCards, body.Card)
 	if !ok {
 		return nil, errors.New("不支持判定")
 	}
@@ -113,7 +112,7 @@ func (p *PlayerCtrl) rewardConfirm(w http.ResponseWriter, r *http.Request, body 
 		websocketNotify("", "", 13, "", api.Empty)
 	}
 
-	//响应当前用户是否摸牌还是出牌
+	//后置事件
 
 	return nil, nil
 }
