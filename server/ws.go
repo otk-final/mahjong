@@ -64,7 +64,9 @@ func wsRoute() http.HandlerFunc {
 				if e != nil || tp != websocket.TextMessage {
 					return
 				}
-				wsc.read <- msg
+				//TODO read
+				//wsc.read <- msg
+				fmt.Println(string(msg))
 			}
 		}(conn, wsc)
 
@@ -84,9 +86,6 @@ func wsRoute() http.HandlerFunc {
 			}
 
 		}(conn, wsc)
-
-		//handler
-		go websocketHandler(wsc)
 	}
 }
 
@@ -136,7 +135,7 @@ func websocketHandler(wsc *websocketChan) {
 }
 
 //回执
-func websocketNotify[T any](roomId string, targetId string, event int, eventId string, payload T) {
+func websocketNotify[T any](roomId string, targetId string, event api.WebEvent, eventId string, payload T) {
 	chKey := fmt.Sprintf("%s#%s", roomId, targetId)
 	temp, ok := memoryChannelMap.Load(chKey)
 	if !ok {

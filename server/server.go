@@ -7,21 +7,22 @@ import (
 
 var muxRouter = mux.NewRouter()
 
-var playCtrl = &PlayerCtrl{}
-var gameCtrl = &GameCtrl{}
-
 func ApiRegister() *mux.Router {
 
+	//房间
+
 	//游戏
-	muxRouter.Methods("POST").Path("/game/start").HandlerFunc(wrap.NewWrapper(gameCtrl.start).Func())
-	muxRouter.Methods("POST").Path("/game/startReady").HandlerFunc(wrap.NewWrapper(gameCtrl.startReady).Func())
+	muxRouter.Methods("POST").Path("/game/start").HandlerFunc(wrap.NewWrapper(start).Func())
+	muxRouter.Methods("POST").Path("/game/startAck").HandlerFunc(wrap.NewWrapper(startAck).Func())
+	muxRouter.Methods("POST").Path("/game/startLoad").HandlerFunc(wrap.NewWrapper(startLoad).Func())
 
 	//卡牌事件
-	muxRouter.Methods("POST").Path("/playCtrl/take").HandlerFunc(wrap.NewWrapper(playCtrl.take).Func())
-	muxRouter.Methods("POST").Path("/playCtrl/put").HandlerFunc(wrap.NewWrapper(playCtrl.put).Func())
-	muxRouter.Methods("POST").Path("/playCtrl/reward").HandlerFunc(wrap.NewWrapper(playCtrl.reward).Func())
-	muxRouter.Methods("POST").Path("/playCtrl/win").HandlerFunc(wrap.NewWrapper(playCtrl.win).Func())
-	muxRouter.Methods("POST").Path("/playCtrl/skip").HandlerFunc(wrap.NewWrapper(playCtrl.skip).Func())
+	muxRouter.Methods("POST").Path("/play/take").HandlerFunc(wrap.NewWrapper(take).Func())
+	muxRouter.Methods("POST").Path("/play/put").HandlerFunc(wrap.NewWrapper(put).Func())
+	muxRouter.Methods("POST").Path("/play/rewardCheck").HandlerFunc(wrap.NewWrapper(rewardCheck).Func())
+	muxRouter.Methods("POST").Path("/play/rewardConfirm").HandlerFunc(wrap.NewWrapper(rewardConfirm).Func())
+	muxRouter.Methods("POST").Path("/play/win").HandlerFunc(wrap.NewWrapper(win).Func())
+	muxRouter.Methods("POST").Path("/play/skip").HandlerFunc(wrap.NewWrapper(skip).Func())
 
 	//长链接
 	muxRouter.Handle("/ws/{roomId}", wsRoute())

@@ -10,10 +10,8 @@ import (
 	"net/http"
 )
 
-type PlayerCtrl struct{}
-
 // 摸牌
-func (p *PlayerCtrl) take(w http.ResponseWriter, r *http.Request, body api.TakeCard) (*api.Reply, error) {
+func take(w http.ResponseWriter, r *http.Request, body api.TakeCard) (*api.Reply, error) {
 
 	header := wrap.GetHeader(r)
 	userId := header.UserId
@@ -39,7 +37,7 @@ func (p *PlayerCtrl) take(w http.ResponseWriter, r *http.Request, body api.TakeC
 }
 
 // 出牌
-func (p *PlayerCtrl) put(w http.ResponseWriter, r *http.Request, body api.PutCard) (*api.Reply, error) {
+func put(w http.ResponseWriter, r *http.Request, body api.PutCard) (*api.Reply, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -56,11 +54,11 @@ func (p *PlayerCtrl) put(w http.ResponseWriter, r *http.Request, body api.PutCar
 
 	//通知玩家判定
 	for i := 0; i < 4; i++ {
-		websocketNotify("", "", 103, "", body)
+		websocketNotify(body.RoomId, "", api.PutCardEvent, "", body)
 	}
 
 	//倒计时 - 是否通知下家摸牌
-	traceId := countdown.NewTrackId("")
+	traceId := countdown.NewTrackId(body.RoomId)
 	countdown.New(traceId, 4-1, api.TurnChangeTimeOut, func(data countdown.CallData[]) {
 		//有人判定，当前倒计时无效
 		if data.Action == countdown.IsClose {
@@ -72,7 +70,7 @@ func (p *PlayerCtrl) put(w http.ResponseWriter, r *http.Request, body api.PutCar
 	return nil, nil
 }
 
-func (p *PlayerCtrl) rewardConfirm(w http.ResponseWriter, r *http.Request, body api.RewardCard) (*api.Reply, error) {
+func rewardConfirm(w http.ResponseWriter, r *http.Request, body api.RewardCard) (*api.Reply, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -118,7 +116,7 @@ func (p *PlayerCtrl) rewardConfirm(w http.ResponseWriter, r *http.Request, body 
 }
 
 // 判定
-func (p *PlayerCtrl) rewardCheck(w http.ResponseWriter, r *http.Request, u api.RewardCard) (*api.Reply, error) {
+func rewardCheck(w http.ResponseWriter, r *http.Request, u api.RewardCard) (*api.Reply, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -129,7 +127,7 @@ func (p *PlayerCtrl) rewardCheck(w http.ResponseWriter, r *http.Request, u api.R
 }
 
 // 胡
-func (p *PlayerCtrl) win(w http.ResponseWriter, r *http.Request, body api.RewardCard) (*api.Reply, error) {
+func win(w http.ResponseWriter, r *http.Request, body api.RewardCard) (*api.Reply, error) {
 
 	//结束倒计时
 	countdown.Close(body.EventId)

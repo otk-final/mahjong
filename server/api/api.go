@@ -41,6 +41,11 @@ type RoomInf struct {
 type GameRun struct {
 	RoomId string `json:"room_id"`
 }
+
+type GameReady struct {
+	RoomId string `json:"room_id"`
+}
+
 type GameReadyAck struct {
 	EventId string `json:"event_id"`
 	RoomId  string `json:"room_id"`

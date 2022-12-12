@@ -2,6 +2,7 @@ package mj
 
 import (
 	"container/ring"
+	"errors"
 	"math/rand"
 	"sort"
 	"strings"
@@ -9,14 +10,31 @@ import (
 	"time"
 )
 
+type Room struct {
+	Id       string
+	syncLock sync.Mutex
+	seats    *ring.Ring
+	seatsIdx int
+	members  int //玩家数
+	round    int
+	roundIdx int
+}
+
 type Table struct {
 	syncLock      sync.Mutex
-	Locator       *ring.Ring
 	members       int   //玩家数
 	dice          int   //骰子数
 	fIdx          int   //向前
 	bIdx          int   //向后
 	remainLibrary Cards //余牌
+}
+
+func NewRoom(members int) *Room {
+	return &Room{
+		syncLock: sync.Mutex{},
+		seats:    ring.New(members),
+		members:  members,
+	}
 }
 
 func NewDice() int {
@@ -25,31 +43,13 @@ func NewDice() int {
 }
 
 func NewTable(members, dice int) *Table {
-
-	//环形座位链表 虚位待坐
-	locator := ring.New(members)
-	for i := 0; i < members; i++ {
-		locator.Value = newPlayer(i)
-		locator = locator.Next()
-	}
-
 	return &Table{
-		syncLock:      sync.Mutex{},
 		members:       members,
-		Locator:       locator,
 		dice:          dice,
 		fIdx:          -1,
 		bIdx:          -1,
 		remainLibrary: make([]int, 0),
 	}
-}
-
-func (table *Table) Join(idx int, uid string) {
-	if idx > table.members {
-		return
-	}
-	p := table.Locator.Move(idx).Value.(*Player)
-	p.Id = uid
 }
 
 // Shuffle 洗牌
@@ -62,7 +62,7 @@ func (table *Table) Shuffle(initLibrary Cards) Cards {
 }
 
 // Allocate 发牌
-func (table *Table) Allocate(initLibrary Cards) map[int][]int {
+func (table *Table) Allocate(initLibrary Cards) map[int]Cards {
 
 	//等比分4方
 	sideCount := len(initLibrary) / 4
@@ -90,7 +90,7 @@ func (table *Table) Allocate(initLibrary Cards) map[int][]int {
 	newLibrary = append(newLibrary, forward...)
 	table.remainLibrary = newLibrary
 
-	members := make(map[int][]int, 0)
+	members := make(map[int]Cards, 0)
 
 	// init玩家手牌
 	for i := 0; i < table.members; i++ {
@@ -142,48 +142,75 @@ func (table *Table) TailAt() int {
 	return tail
 }
 
-// ThiefAt 偷牌
-func (table *Table) ThiefAt(idx int) {
+func (room *Room) Join(p *Player) {
+	defer room.syncLock.Unlock()
+	room.syncLock.Lock()
 
+	p.Idx = room.seatsIdx
+	room.seats.Value = p
+	room.seats = room.seats.Next()
+
+	//座位依次就坐
+	room.seatsIdx++
+}
+
+func (room *Room) Exit(pIdx int) {
+	defer room.syncLock.Unlock()
+	room.syncLock.Lock()
+	if pIdx >= room.seats.Len() {
+		return
+	}
+	room.seats.Unlink(pIdx)
+}
+
+func (room *Room) Ready() ([]*Player, bool) {
+	ps := make([]*Player, 0)
+	room.seats.Do(func(a any) {
+		ps = append(ps, a.(*Player))
+	})
+	return ps, room.seats.Len() == room.members
+}
+
+func (room *Room) Player(pid string) (*Player, error) {
+	var p *Player
+	room.seats.Do(func(a any) {
+		temp := a.(*Player)
+		if strings.EqualFold(temp.Id, pid) {
+			p = temp
+			return
+		}
+	})
+	if p == nil {
+		return nil, errors.New("not found")
+	}
+	return p, nil
 }
 
 // TurnCheck 我的回合？
-func (table *Table) TurnCheck(pid string) (bool, *Player) {
-	p := table.Locator.Value.(*Player)
-	return strings.EqualFold(p.Id, pid), p
+func (room *Room) TurnCheck(sIdx int) (bool, *Player) {
+	p := room.seats.Value.(*Player)
+	return p.Idx == sIdx, p
 }
 
 // TurnChange 回合
-func (table *Table) TurnChange(pid string) *Player {
-	defer table.syncLock.Unlock()
-	table.syncLock.Lock()
-
-	//获取index
-	idx := -1
-	table.Locator.Do(func(a any) {
-		p := a.(*Player)
-		if strings.EqualFold(p.Id, pid) {
-			idx = p.Idx
-		}
-	})
-	if idx <= 0 {
-		return nil
-	}
+func (room *Room) TurnChange(sIdx int) *Player {
+	defer room.syncLock.Unlock()
+	room.syncLock.Lock()
 
 	//移动定位
-	return table.Locator.Move(idx).Value.(*Player)
+	return room.seats.Move(sIdx).Value.(*Player)
 }
 
 // TurnNext 下一回合
-func (table *Table) TurnNext() *Player {
-	defer table.syncLock.Unlock()
-	table.syncLock.Lock()
-	return table.Locator.Next().Value.(*Player)
+func (room *Room) TurnNext() *Player {
+	defer room.syncLock.Unlock()
+	room.syncLock.Lock()
+	return room.seats.Next().Value.(*Player)
 }
 
 // TurnPlayer 当前回合
-func (table *Table) TurnPlayer() *Player {
-	return table.Locator.Value.(*Player)
+func (room *Room) TurnPlayer() *Player {
+	return room.seats.Value.(*Player)
 }
 
 // Player 玩家手上的牌
@@ -195,9 +222,9 @@ type Player struct {
 	RewardGroup []Cards
 }
 
-func newPlayer(num int) *Player {
+func NewPlayer(pid string) *Player {
 	return &Player{
-		Idx:         num,
+		Id:          pid,
 		HandCards:   make(Cards, 0),
 		PutCards:    make(Cards, 0),
 		RewardGroup: make([]Cards, 0),
