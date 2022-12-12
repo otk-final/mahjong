@@ -1,92 +1,119 @@
 package countdown
 
 import (
+	"github.com/google/uuid"
 	"sync"
 	"time"
 )
 
-type Type int
+type timer[T any] struct {
+	traceId    string
+	funcOnce   *sync.Once
+	readyCh    chan *T
+	doneCh     chan struct{}
+	startTime  time.Time
+	expireTime time.Time
+}
+
+type CallData[T any] struct {
+	Action   ActionType
+	Payloads []*T
+}
+type Callable[R any] func(data CallData[R])
+
+type ActionType int
 
 const (
-	IsTimeOut Type = iota
-	IsDone
-	IsAck
+	IsReady ActionType = iota
+	IsClose
+	IsExpired
 )
-
-type Timer struct {
-	id       string
-	fnOnce   *sync.Once
-	delayCh  chan int
-	delay    int
-	InitTime time.Time
-	AckTimes []time.Time
-	DoneTime time.Time
-}
-type Feedback func(status Type, tm *Timer)
 
 var countdownMap = &sync.Map{}
 
-func New(timerId string, delta int, second int, fn Feedback) {
+func NewTrackId(roomId string) string {
+	return uuid.NewString()
+}
 
-	tm := &Timer{
-		id:       timerId,
-		fnOnce:   &sync.Once{},
-		delayCh:  make(chan int, delta),
-		delay:    delta,
-		InitTime: time.Now(),
-		AckTimes: make([]time.Time, 0),
+func listener[R any](tm *timer[R], delta int, fn Callable[R]) {
+
+	//倒计时
+	tk := time.NewTicker(1 * time.Second)
+
+	//释放
+	defer func() {
+		close(tm.readyCh)
+		close(tm.doneCh)
+		tk.Stop()
+		countdownMap.Delete(tm.traceId)
+	}()
+
+	tempData := make([]*R, 0)
+	current := 0
+	for {
+		select {
+		case p := <-tm.readyCh:
+			tempData = append(tempData, p)
+			//累计
+			current++
+			if current < delta {
+				//重置剩余时间
+				residue := tm.expireTime.Sub(time.Now())
+				if residue <= 0 {
+					residue = time.Second * 1
+				}
+				tk.Reset(residue)
+				break
+			}
+			//通知业务方
+			data := CallData[R]{
+				Action:   IsReady,
+				Payloads: tempData,
+			}
+			go tm.funcOnce.Do(func() { fn(data) })
+		case <-tm.doneCh:
+			//强制结束
+			go tm.funcOnce.Do(func() { fn(CallData[R]{Action: IsClose, Payloads: tempData}) })
+			return
+		case <-tk.C:
+			//自动超时
+			go tm.funcOnce.Do(func() { fn(CallData[R]{Action: IsExpired, Payloads: tempData}) })
+			return
+		}
 	}
-	countdownMap.Store(timerId, tm)
+}
+
+func New[R any](traceId string, delta int, second int, call Callable[R]) {
+	//计时器
+	now := time.Now()
+	tm := &timer[R]{
+		traceId:    traceId,
+		funcOnce:   &sync.Once{},
+		readyCh:    make(chan *R, 0),
+		doneCh:     make(chan struct{}, 0),
+		startTime:  now,
+		expireTime: now.Add(time.Duration(second) * time.Second),
+	}
+	countdownMap.Store(traceId, tm)
 
 	//异步监听
-	go func(tm *Timer) {
-		//释放
-		defer func() {
-			close(tm.delayCh)
-			countdownMap.Delete(tm.id)
-		}()
-
-		inc := 0
-		for inc < tm.delay {
-			//堵塞执行
-			select {
-			case key := <-tm.delayCh:
-				//手动关闭 退出
-				if key == -1 {
-					go tm.fnOnce.Do(func() { fn(IsDone, tm) })
-					return
-				}
-				//正常
-				inc = inc + key
-				if inc < tm.delay {
-					continue
-				}
-				//正常回执
-				go tm.fnOnce.Do(func() { fn(IsAck, tm) })
-			case <-time.After(time.Duration(second) * time.Second):
-				//异常回执
-				go tm.fnOnce.Do(func() { fn(IsTimeOut, tm) })
-			}
-		}
-	}(tm)
+	go listener(tm, delta, call)
 }
 
-func Ack(timerId string) {
-	temp, ok := countdownMap.Load(timerId)
+func Ready[R any](traceId string, data *R) {
+	temp, ok := countdownMap.Load(traceId)
 	if !ok {
 		return
 	}
-	tm := temp.(*Timer)
-	tm.AckTimes = append(tm.AckTimes, time.Now())
-	tm.delayCh <- 1
+	tm := temp.(*timer[R])
+	tm.readyCh <- data
 }
 
-func Done(timerId string) {
-	temp, ok := countdownMap.Load(timerId)
+func Close[R](traceId string) {
+	temp, ok := countdownMap.Load(traceId)
 	if !ok {
 		return
 	}
-	tm := temp.(*Timer)
-	tm.DoneTime = time.Now()
-	tm.delayCh <- -1
+	tm := temp.(*timer[R])
+	tm.doneCh <- struct{}{}
 }

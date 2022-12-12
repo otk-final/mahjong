@@ -1,13 +1,13 @@
 package server
 
 import (
-	"container/ring"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/server/countdown"
+	"mahjong/server/wrap"
 	"net/http"
 )
 
@@ -31,7 +31,7 @@ func (room *RoomCtrl) inf(roomId string) (*api.RoomInf, error) {
 		RoomId:  roomId,
 		Players: ps,
 		Config: &api.GameConfigure{
-			Gamer:    4,
+			Players:  4,
 			HasWind:  false,
 			HasOther: false,
 		},
@@ -45,7 +45,9 @@ func (room *RoomCtrl) join(w http.ResponseWriter, r *http.Request, body *api.Joi
 // 开始游戏
 func (game *GameCtrl) start(w http.ResponseWriter, r *http.Request, body *api.GameRun) (*api.EmptyData, error) {
 
-	userId := r.Header.Get("user_id")
+	//用户信息
+	header := wrap.GetHeader(r)
+	userId := header.UserId
 
 	//校验房间号
 	roomId := body.RoomId
@@ -54,11 +56,11 @@ func (game *GameCtrl) start(w http.ResponseWriter, r *http.Request, body *api.Ga
 		return nil, err
 	}
 	//判断玩家是否到齐
-	if room.Config.Gamer != len(room.Players) {
+	if room.Config.Players != len(room.Players) {
 		return nil, errors.New("玩家未就位")
 	}
 
-	//1 丢骰
+	//1 丢骰,创建牌桌
 	dice := mj.NewDice()
 	tb := mj.NewTable(len(room.Players), dice)
 
@@ -73,39 +75,25 @@ func (game *GameCtrl) start(w http.ResponseWriter, r *http.Request, body *api.Ga
 	//存储状态
 	game.storeTable(roomId, tb)
 
-	//开启延迟队列
-	timerId := uuid.NewString()
-	countdown.New(timerId, len(room.Players), 30, func(status countdown.Type, inf *countdown.Timer) {
-		//超时
-		if status == 0 {
-			return
-		}
-		//通知当前用户摸第一张牌
-		websocketNotify(roomId, userId, 102, "", api.Empty)
-	})
+	//跟踪准备事件
+	traceId := countdown.NewTrackId(roomId)
 
 	//4 通知所有玩家
 	for k, v := range mCards {
-		websocketNotify(roomId, room.Players[k].UserId, 100, timerId, api.InitializeGamePayload{Cards: v})
+		websocketNotify(roomId, room.Players[k].UserId, 100, traceId, api.GameReadyPacket{Cards: v})
 	}
+
+	//5 倒计时 & 通知庄家摸牌
+	countdown.New[api.GameReadyAck](traceId, len(room.Players), 30, func(data countdown.CallData[api.GameReadyAck]) {
+		master := tb.TurnPlayer()
+		websocketNotify(roomId, master.Id, 300, "", nil)
+	})
 	return api.Empty, nil
 }
 
-//初始牌库
-func (game *GameCtrl) status(w http.ResponseWriter, r *http.Request, body *api.GameAck) (*api.InitializeGamePayload, error) {
-
-	//查询当前牌库
-	userId := r.Header.Get("user_id")
-	tb := game.tableQuery("")
-
-	return &api.InitializeGamePayload{Cards: []int{}}, nil
-}
-
-//回执确认
-func (game *GameCtrl) ack(w http.ResponseWriter, r *http.Request, body *api.GameAck) (*api.EmptyData, error) {
-
-	countdown.Ack(body.EventId)
-
+//准备确认
+func (game *GameCtrl) readyAck(w http.ResponseWriter, r *http.Request, body *api.GameReadyAck) (*api.EmptyData, error) {
+	countdown.Ready(body.EventId, body)
 	return api.Empty, nil
 }
 
@@ -116,9 +104,5 @@ func (game *GameCtrl) storeTable(roomId string, tb *mj.Table) {
 
 func (game *GameCtrl) tableQuery(roomId string) *mj.Table {
 
-	r := ring.New(4)
-	r.Value =
-
 	return nil
 }
-

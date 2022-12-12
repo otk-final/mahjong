@@ -1,10 +1,12 @@
 package wrap
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/unrolled/render"
 	"io/ioutil"
+	"mahjong/server/api"
 	"net/http"
 )
 
@@ -48,6 +50,14 @@ func (receiver AnyHandler[T, R]) Func() http.HandlerFunc {
 		if err != nil {
 			_ = respRender.Text(writer, 500, "api json unmarshal error :"+err.Error())
 		}
+
+		//header
+		apiHeader := &api.UserHeader{
+			UserId: request.Header.Get("user_id"),
+			Token:  request.Header.Get("token"),
+		}
+		request.WithContext(context.WithValue(request.Context(), "header", apiHeader))
+
 		//执行
 		r, err := receiver.fn(writer, request, t)
 
@@ -73,4 +83,8 @@ func NewWrapper[T any, R any](fn AnyFunc[T, R]) AnyHandler[T, R] {
 	return AnyHandler[T, R]{
 		fn: fn,
 	}
+}
+
+func GetHeader(request *http.Request) *api.UserHeader {
+	return request.Context().Value("header").(*api.UserHeader)
 }

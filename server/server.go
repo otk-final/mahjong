@@ -21,7 +21,7 @@ func ApiRegister() *mux.Router {
 
 	//游戏
 	muxRouter.Methods("POST").Path("/game/start").HandlerFunc(wrap.NewWrapper(gameCtrl.start).Func())
-	muxRouter.Methods("POST").Path("/game/ack").HandlerFunc(wrap.NewWrapper(gameCtrl.ack).Func())
+	muxRouter.Methods("POST").Path("/game/startReady").HandlerFunc(wrap.NewWrapper(gameCtrl.startReady).Func())
 
 	//卡牌事件
 	muxRouter.Methods("POST").Path("/playCtrl/take").HandlerFunc(wrap.NewWrapper(playCtrl.take).Func())

@@ -15,8 +15,7 @@ type WebPacket[T any] struct {
 	Payload T      `json:"payload"`
 }
 
-// InitializeGamePayload 初始牌
-type InitializeGamePayload struct {
+type GameReadyPacket struct {
 	Cards []int `json:"cards"`
 }
 

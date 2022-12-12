@@ -1,6 +1,12 @@
 package api
 
 var Empty = &EmptyData{}
+var TurnChangeTimeOut int = 30
+
+type UserHeader struct {
+	UserId string
+	Token  string
+}
 
 type EmptyData struct {
 }
@@ -35,8 +41,7 @@ type RoomInf struct {
 type GameRun struct {
 	RoomId string `json:"room_id"`
 }
-type GameAck struct {
-	Event   int    `json:"event"`
+type GameReadyAck struct {
 	EventId string `json:"event_id"`
 	RoomId  string `json:"room_id"`
 }
@@ -45,15 +50,16 @@ type GameInf struct {
 }
 
 type GameConfigure struct {
-	Gamer    int  `json:"gamer"`
+	Players  int  `json:"players"`
 	HasWind  bool `json:"has_wind"`
 	HasOther bool `json:"has_other"`
 }
 
 // TakeCard 摸牌
 type TakeCard struct {
-	RoomId string `json:"room_id"`
-	GameId string `json:"game_id"`
+	RoomId    string `json:"room_id"`
+	GameId    string `json:"game_id"`
+	Direction int    `json:"direction"`
 }
 
 // PutCard 出牌
@@ -65,11 +71,12 @@ type PutCard struct {
 
 // RewardCard 判定
 type RewardCard struct {
-	RoomId     string `json:"room_id"`
-	GameId     string `json:"game_id"`
-	Event      string `json:"event"`
-	PlayCards  []int  `json:"play_cards"`
-	RewardCard int    `json:"reward_card"`
+	RoomId    string `json:"room_id"`
+	GameId    string `json:"game_id"`
+	EventId   string `json:"event_id"`
+	Action    string
+	WithCards []int `json:"with_cards"`
+	Card      int   `json:"card"`
 }
 
 type Reply struct {

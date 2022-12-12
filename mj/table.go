@@ -1,14 +1,18 @@
 package mj
 
 import (
+	"container/ring"
 	"math/rand"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
 
 type Table struct {
 	syncLock      sync.Mutex
-	players       int   //玩家数
+	Locator       *ring.Ring
+	members       int   //玩家数
 	dice          int   //骰子数
 	fIdx          int   //向前
 	bIdx          int   //向后
@@ -20,15 +24,32 @@ func NewDice() int {
 	return rand.Intn(6) + 1
 }
 
-func NewTable(players, dice int) *Table {
+func NewTable(members, dice int) *Table {
+
+	//环形座位链表 虚位待坐
+	locator := ring.New(members)
+	for i := 0; i < members; i++ {
+		locator.Value = newPlayer(i)
+		locator = locator.Next()
+	}
+
 	return &Table{
 		syncLock:      sync.Mutex{},
-		players:       players,
+		members:       members,
+		Locator:       locator,
 		dice:          dice,
 		fIdx:          -1,
 		bIdx:          -1,
 		remainLibrary: make([]int, 0),
 	}
+}
+
+func (table *Table) Join(idx int, uid string) {
+	if idx > table.members {
+		return
+	}
+	p := table.Locator.Move(idx).Value.(*Player)
+	p.Id = uid
 }
 
 // Shuffle 洗牌
@@ -72,7 +93,7 @@ func (table *Table) Allocate(initLibrary Cards) map[int][]int {
 	members := make(map[int][]int, 0)
 
 	// init玩家手牌
-	for i := 0; i < table.players; i++ {
+	for i := 0; i < table.members; i++ {
 		members[i] = make([]int, 0)
 	}
 
@@ -83,7 +104,7 @@ func (table *Table) Allocate(initLibrary Cards) map[int][]int {
 		if i == 3 { //最后轮流一张
 			count = 1
 		}
-		for m := 0; m < table.players; m++ {
+		for m := 0; m < table.members; m++ {
 			members[m] = append(members[m], table.remainLibrary[startIdx:startIdx+count]...)
 			startIdx = startIdx + count
 		}
@@ -94,28 +115,109 @@ func (table *Table) Allocate(initLibrary Cards) map[int][]int {
 	return members
 }
 
-// ForwardAt 从前摸
-func (table *Table) ForwardAt() int {
+// HeadAt 从前摸
+func (table *Table) HeadAt() int {
 
 	defer table.syncLock.Unlock()
 
 	table.syncLock.Lock()
 	table.fIdx++
 
-	return table.remainLibrary[0]
+	head := table.remainLibrary[0]
+
+	table.remainLibrary = table.remainLibrary[1:]
+	return head
 }
 
-// BackwardAt 从后摸
-func (table *Table) BackwardAt() int {
+// TailAt 从后摸
+func (table *Table) TailAt() int {
 	defer table.syncLock.Unlock()
 
 	table.syncLock.Lock()
 	table.bIdx++
 
-	return table.remainLibrary[len(table.remainLibrary)-1]
+	tail := table.remainLibrary[len(table.remainLibrary)-1]
+
+	table.remainLibrary = table.remainLibrary[0 : len(table.remainLibrary)-2]
+	return tail
 }
 
 // ThiefAt 偷牌
 func (table *Table) ThiefAt(idx int) {
 
+}
+
+// TurnCheck 我的回合？
+func (table *Table) TurnCheck(pid string) (bool, *Player) {
+	p := table.Locator.Value.(*Player)
+	return strings.EqualFold(p.Id, pid), p
+}
+
+// TurnChange 回合
+func (table *Table) TurnChange(pid string) *Player {
+	defer table.syncLock.Unlock()
+	table.syncLock.Lock()
+
+	//获取index
+	idx := -1
+	table.Locator.Do(func(a any) {
+		p := a.(*Player)
+		if strings.EqualFold(p.Id, pid) {
+			idx = p.Idx
+		}
+	})
+	if idx <= 0 {
+		return nil
+	}
+
+	//移动定位
+	return table.Locator.Move(idx).Value.(*Player)
+}
+
+// TurnNext 下一回合
+func (table *Table) TurnNext() *Player {
+	defer table.syncLock.Unlock()
+	table.syncLock.Lock()
+	return table.Locator.Next().Value.(*Player)
+}
+
+// TurnPlayer 当前回合
+func (table *Table) TurnPlayer() *Player {
+	return table.Locator.Value.(*Player)
+}
+
+// Player 玩家手上的牌
+type Player struct {
+	Id          string
+	Idx         int
+	HandCards   Cards
+	PutCards    Cards
+	RewardGroup []Cards
+}
+
+func newPlayer(num int) *Player {
+	return &Player{
+		Idx:         num,
+		HandCards:   make(Cards, 0),
+		PutCards:    make(Cards, 0),
+		RewardGroup: make([]Cards, 0),
+	}
+}
+
+func (p *Player) AddTakeCard(mj int) {
+	p.HandCards = append(p.HandCards, mj)
+}
+
+func (p *Player) AddPutCard(mj int) {
+	p.PutCards = append(p.PutCards, mj)
+}
+
+func (p *Player) AddRewardCards(source []int, target int) {
+
+	rw := make(Cards, 0)
+	copy(rw, source)
+	source = append(source, target)
+
+	sort.Ints(source)
+	p.RewardGroup = append(p.RewardGroup, rw)
 }
