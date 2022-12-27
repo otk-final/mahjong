@@ -52,7 +52,7 @@ func (receiver AnyHandler[T, R]) Func() http.HandlerFunc {
 		}
 
 		//header
-		apiHeader := &api.UserHeader{
+		apiHeader := &api.IdentityHeader{
 			UserId: request.Header.Get("user_id"),
 			Token:  request.Header.Get("token"),
 		}
@@ -85,6 +85,6 @@ func NewWrapper[T any, R any](fn AnyFunc[T, R]) AnyHandler[T, R] {
 	}
 }
 
-func GetHeader(request *http.Request) *api.UserHeader {
-	return request.Context().Value("header").(*api.UserHeader)
+func GetHeader(request *http.Request) *api.IdentityHeader {
+	return request.Context().Value("header").(*api.IdentityHeader)
 }

@@ -1,14 +1,10 @@
 package api
 
-import "encoding/json"
+import (
+	"github.com/google/uuid"
+)
 
 type WebEvent int
-
-const (
-	GameReadyEvent WebEvent = 100
-	TakeCardEvent  WebEvent = 101
-	PutCardEvent   WebEvent = 102
-)
 
 type WebPacket[T any] struct {
 	Event   WebEvent `json:"event"`
@@ -16,12 +12,64 @@ type WebPacket[T any] struct {
 	Payload T        `json:"payload"`
 }
 
-// UnPacket 解码
-func UnPacket[T any](packet []byte) (WebEvent, *T, error) {
-	var wp WebPacket[T]
-	err := json.Unmarshal(packet, &wp)
-	if err != nil {
-		return -1, nil, err
-	}
-	return wp.Event, &wp.Payload, nil
+type RaceType int
+
+var RaceNames = map[RaceType]string{
+	WinRace:  "胡",
+	PairRace: "碰",
+	EatRace:  "吃",
+	GangRace: "杠",
+}
+
+const (
+	// WinRace 胡
+	WinRace RaceType = iota + 1
+	// PairRace 碰
+	PairRace
+	// EatRace 吃
+	EatRace
+	// GangRace 杠
+	GangRace
+)
+
+type TakePayload struct {
+	Who   int `json:"who"`
+	Round int `json:"round"`
+	Take  int `json:"take"`
+}
+type PutPayload struct {
+	Who   int `json:"who"`
+	Round int `json:"round"`
+	Put   int `json:"put"`
+}
+
+type PutAckPayload struct {
+	AckId int `json:"ackId"`
+	PutPayload
+}
+
+type RacePayload struct {
+	Who       int      `json:"who"`
+	Round     int      `json:"round"`
+	RaceType  RaceType `json:"raceType"`
+	HandTiles []int    `json:"handTiles"`
+	Tile      int      `json:"tile"`
+}
+type AckPayload struct {
+	Who   int `json:"who"`
+	Round int `json:"round"`
+	AckId int `json:"ackId"`
+}
+
+type NextPayload struct {
+	Who int `json:"who"`
+}
+
+type JoinPayload struct {
+	Member *Player `json:"member"`
+	Round  int     `json:"round"`
+}
+
+func Packet[T any](code WebEvent, event T) *WebPacket[T] {
+	return &WebPacket[T]{Event: code, EventId: uuid.New().String(), Payload: event}
 }

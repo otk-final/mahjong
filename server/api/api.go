@@ -1,20 +1,21 @@
 package api
 
-var Empty = &EmptyData{}
-var TurnChangeTimeOut int = 30
-
-type UserHeader struct {
-	UserId string
-	Token  string
+type GameConfigure struct {
+	Mode  string   `json:"mode"`  //模型
+	Nums  int      `json:"nums"`  //玩家数
+	Tiles []string `json:"tiles"` //牌库（万，筒，条，风，中，发，白）
 }
 
-type EmptyData struct {
-}
+const (
+	AvgPayment    PaymentMode = iota + 1 //AA制
+	MasterPayment                        //房主支付
+	WinPayment                           //庄家支付
+)
 
-type Identity struct {
-	UserId   string
-	Token    string
-	UserName string
+type PaymentMode int
+type PaymentConfigure struct {
+	Mode   PaymentMode `json:"mode"` //支付方式（AA模式，房主买单）
+	Amount int         `json:"pay"`  //费用
 }
 
 // JoinRoom 加入房间
@@ -24,7 +25,8 @@ type JoinRoom struct {
 
 // CreateRoom 创建房间
 type CreateRoom struct {
-	Config *GameConfigure `json:"config"`
+	Game    *GameConfigure    `json:"config"`
+	Payment *PaymentConfigure `json:"payment"`
 }
 
 // ExitRoom 退出房间
@@ -32,58 +34,63 @@ type ExitRoom struct {
 	RoomId string `json:"room_id"`
 }
 
+// Player 玩家身份信息
+type Player struct {
+	Idx    int    `json:"idx"`
+	AcctId string `json:"acctId"`
+	Name   string `json:"name"`
+	Alias  string `json:"alias"`
+	Avatar string `json:"avatar"`
+}
+
+// RoomInf 房间信息
 type RoomInf struct {
-	RoomId  string
-	Players map[int]Identity
-	Config  *GameConfigure
+	RoomId  string            `json:"roomId"`
+	Players map[int]*Player   `json:"players"`
+	Game    *GameConfigure    `json:"game"`
+	Payment *PaymentConfigure `json:"payment"`
 }
 
-type GameRun struct {
-	RoomId string `json:"room_id"`
+type GameStart struct {
+	RoomId string `json:"roomId"`
 }
 
-type GameReady struct {
-	RoomId string `json:"room_id"`
-}
-
-type GameReadyAck struct {
-	EventId string `json:"event_id"`
-	RoomId  string `json:"room_id"`
-}
-
-type GameInf struct {
-}
-
-type GameConfigure struct {
-	Mode     string
-	Players  int  `json:"players"`
-	HasWind  bool `json:"has_wind"`
-	HasOther bool `json:"has_other"`
-}
-
-// TakeCard 摸牌
-type TakeCard struct {
-	RoomId    string `json:"room_id"`
-	GameId    string `json:"game_id"`
+type TakeParameter struct {
+	RoomId    string `json:"roomId"`
 	Direction int    `json:"direction"`
 }
 
-// PutCard 出牌
-type PutCard struct {
-	RoomId string `json:"room_id"`
-	GameId string `json:"game_id"`
-	Card   int    `json:"card"`
+type PutParameter struct {
+	RoomId string `json:"roomId"`
+	PutPayload
 }
 
-// RewardCard 判定
-type RewardCard struct {
-	RoomId    string `json:"room_id"`
-	GameId    string `json:"game_id"`
-	EventId   string `json:"event_id"`
-	Action    string
-	WithCards []int `json:"with_cards"`
-	Card      int   `json:"card"`
+type RaceParameter struct {
+	RoomId string `json:"roomId"`
+	RacePayload
 }
 
-type Reply struct {
+type AckParameter struct {
+	RoomId string `json:"roomId"`
+	AckPayload
+}
+
+type RacePreview struct {
+	RoomId string `json:"roomId"`
+	Round  int    `json:"round"`
+}
+
+type RaceEffects struct {
+	Eats      [][]int       `json:"eats"`      //吃
+	Pair      []int         `json:"pair"`      //碰
+	OtherGang []int         `json:"otherGang"` //杠别人
+	OwnGang   []int         `json:"ownGang"`   //自杠
+	Win       []int         `json:"win"`       //胡
+	Cao       []int         `json:"cao"`       //朝
+	Tings     map[int][]int `json:"tings"`     //听
+}
+
+type RacePost struct {
+	Action    string `json:"action"`    //摸牌，或出牌
+	Direction int    `json:"direction"` //摸牌方向（首，尾）
 }

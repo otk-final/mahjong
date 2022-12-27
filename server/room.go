@@ -1,70 +1,97 @@
 package server
 
 import (
-	"errors"
-	"mahjong/mj"
+	"fmt"
+	"github.com/google/uuid"
+	"hash/crc32"
 	"mahjong/server/api"
+	"mahjong/server/engine"
+	"mahjong/server/store"
 	"mahjong/server/wrap"
 	"net/http"
-	"sync"
 )
 
-// 加入房间
-func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.EmptyData, error) {
+// 创建房间
+func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.RoomInf, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
-	userId := header.UserId
+	master := &api.Player{
+		Idx:    0,
+		AcctId: header.UserId,
+		Alias:  "庄家",
+	}
 
-	//查询房间信息
-	room, err := roomQuery(body.RoomId)
+	//生成房间号
+	roomId := roomIdGen()
+
+	//save 配置信息
+	store.CreateRoom(roomId, body.Game, body.Payment)
+
+	//设置庄家，虚位待坐 join
+	pos, _ := engine.NewPosition(body.Game.Nums, master)
+	_ = pos.Join(master)
+
+	//save 座位信息
+	store.CreatePosition(roomId, pos)
+
+	//房间信息
+	return roomInfQuery(roomId)
+}
+
+// 生成房间号
+func roomIdGen() string {
+	id := crc32.ChecksumIEEE([]byte(uuid.New().String()))
+	return fmt.Sprintf("%d", id)
+}
+
+// 加入房间
+func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.RoomInf, error) {
+
+	//用户信息
+	header := wrap.GetHeader(r)
+
+	//查询座位信息
+	pos, err := store.GetPosition(body.RoomId)
 	if err != nil {
 		return nil, err
 	}
 
-	//是否满员
-	_, ok := room.Ready()
-	if ok {
-		return nil, errors.New("房间已满")
+	//自动选座 idx = -1
+	member := &api.Player{
+		Idx:    -1,
+		AcctId: header.UserId,
+		Name:   "",
+		Alias:  "闲家",
 	}
 
-	//加入房间
-	room.Join(mj.NewPlayer(userId))
-	return api.Empty, nil
+	//入座
+	err = pos.Join(member)
+	if err != nil {
+		return nil, err
+	}
+
+	//update
+	err = store.UpdatePosition(body.RoomId, pos)
+	if err != nil {
+		return nil, err
+	}
+
+	//通知有新玩家加入
+	joins := pos.Players()
+	rx := &roomExchange{roomId: body.RoomId, members: joins}
+	Broadcast(rx, api.Packet(99, &api.JoinPayload{Member: member, Round: 0}))
+
+	//房间信息
+	return roomInfQuery(body.RoomId)
 }
 
 // 退出房间
-func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.EmptyData, error) {
+func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.NoResp, error) {
 
-	//用户信息
-	header := wrap.GetHeader(r)
-	userId := header.UserId
+	return api.Empty, nil
+}
 
-	//查询房间信息
-	room, err := roomQuery(body.RoomId)
-	if err != nil {
-		return nil, err
-	}
-	//查询玩家，并退出
-	p, err := room.Player(userId)
-	if err != nil {
-		return nil, err
-	}
-	room.Exit(p.Idx)
-
+func roomInfQuery(roomId string) (*api.RoomInf, error) {
 	return nil, nil
-}
-
-var roomManager = &sync.Map{}
-
-func storeRoom(roomId string, room *mj.Room) {
-	roomManager.Store(roomId, room)
-}
-
-func roomQuery(roomId string) (*mj.Room, error) {
-	temp, ok := roomManager.Load(roomId)
-	if !ok {
-		return nil, errors.New("room not found")
-	}
-	return temp.(*mj.Room), nil
 }

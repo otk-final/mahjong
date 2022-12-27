@@ -36,28 +36,26 @@ func wsRoute() http.HandlerFunc {
 		//远程设备信息
 		conn.LocalAddr()
 		conn.RemoteAddr()
-		identity := &api.Identity{
-			UserId:   roomId,
-			Token:    request.Header.Get("token"),
-			UserName: request.Header.Get("user_name"),
-		}
 
 		//缓存
-		wsc := &websocketChan{
-			roomId:   roomId,
-			identity: identity,
-			read:     make(chan []byte, 100),
-			write:    make(chan []byte, 100),
+		wsc := &netChan{
+			roomId: roomId,
+			identity: &api.IdentityHeader{
+				UserId: request.Header.Get("userId"),
+				Token:  request.Header.Get("token"),
+			},
+			read:  make(chan []byte, 100),
+			write: make(chan []byte, 100),
 		}
-		_, _ = memoryChannelMap.LoadOrStore(wsc.Key(), wsc)
+		_, _ = netChanMap.LoadOrStore(wsc.Key(), wsc)
 
 		//读
-		go func(conn *websocket.Conn, wsc *websocketChan) {
+		go func(conn *websocket.Conn, wsc *netChan) {
 			//释放
 			defer func() {
 				_ = conn.Close()
 				wsc.Close()
-				memoryChannelMap.Delete(wsc.Key())
+				netChanMap.Delete(wsc.Key())
 			}()
 			for {
 				tp, msg, e := conn.ReadMessage()
@@ -71,7 +69,7 @@ func wsRoute() http.HandlerFunc {
 		}(conn, wsc)
 
 		//写
-		go func(conn *websocket.Conn, wsc *websocketChan) {
+		go func(conn *websocket.Conn, wsc *netChan) {
 			for {
 				select {
 				case data, ok := <-wsc.write:
@@ -89,55 +87,29 @@ func wsRoute() http.HandlerFunc {
 	}
 }
 
-var memoryChannelMap = &sync.Map{}
+//全局缓存
+var netChanMap = &sync.Map{}
 
-type websocketChan struct {
+type netChan struct {
 	roomId   string
-	identity *api.Identity
+	identity *api.IdentityHeader
 	read     chan []byte
 	write    chan []byte
 }
 
-func (wsc *websocketChan) Close() {
+func (wsc *netChan) Close() {
 	close(wsc.read)
 	close(wsc.write)
 }
-func (wsc *websocketChan) Key() string {
+
+func (wsc *netChan) Key() string {
 	return fmt.Sprintf("%s#%s", wsc.roomId, wsc.identity.UserId)
-}
-
-func websocketHandler(wsc *websocketChan) {
-	for {
-		select {
-		case req, ok := <-wsc.read:
-			if !ok {
-				return
-			}
-			//解包
-			event, payload, err := api.UnPacket[map[string]interface{}](req)
-			if err != nil {
-				continue
-			}
-			fmt.Println(payload)
-			//TODO 路由
-			switch event {
-			case 100:
-
-			case 101:
-			case 102:
-			case 103:
-
-			}
-		case <-time.After(5 * time.Second):
-		}
-	}
-
 }
 
 //回执
 func websocketNotify[T any](roomId string, targetId string, event api.WebEvent, eventId string, payload T) {
 	chKey := fmt.Sprintf("%s#%s", roomId, targetId)
-	temp, ok := memoryChannelMap.Load(chKey)
+	temp, ok := netChanMap.Load(chKey)
 	if !ok {
 		return
 	}
@@ -145,5 +117,5 @@ func websocketNotify[T any](roomId string, targetId string, event api.WebEvent, 
 	msg := &api.WebPacket[T]{Event: event, EventId: eventId, Payload: payload}
 	packet, _ := json.Marshal(msg)
 
-	temp.(*websocketChan).write <- packet
+	temp.(*netChan).write <- packet
 }

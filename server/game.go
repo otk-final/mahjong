@@ -2,90 +2,108 @@ package server
 
 import (
 	"errors"
-	"mahjong/mj"
+	"mahjong/ploy"
 	"mahjong/server/api"
-	"mahjong/server/countdown"
+	"mahjong/server/engine"
+	"mahjong/server/store"
 	"mahjong/server/wrap"
 	"net/http"
+	"time"
 )
 
 // 开始游戏
-func start(w http.ResponseWriter, r *http.Request, body *api.GameRun) (*api.EmptyData, error) {
+func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoResp, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
-	userId := header.UserId
 
-	//校验房间号
-	roomId := body.RoomId
-	room := mj.Room{}
-
-	//是否就位
-	ps, ok := room.Ready()
-	if !ok {
-		return nil, errors.New("玩家未就位")
+	//当前就坐信息
+	pos, err := store.GetPosition(body.RoomId)
+	if err != nil {
+		return nil, err
 	}
 
-	//1 丢骰,创建牌桌
-	dice := mj.NewDice()
-	tb := mj.NewTable(len(ps), dice)
-
-	//2 根据当前配置获取牌库
-	var mjLib = make([]int, 0)
-	mjLib = mj.LoadLibrary(false, false)
-
-	//3 洗牌,发牌
-	mjLib = tb.Shuffle(mjLib)
-	mcs := tb.Allocate(mjLib)
-
-	//4，添加到玩家牌库
-	for _, p := range ps {
-		p.HandCards = mcs[p.Idx]
+	//校验用户信息，是否为庄家
+	if pos.IsMaster(header.UserId) {
+		return nil, errors.New("待庄家开启游戏")
 	}
 
-	//存储状态
-	storeTable(roomId, tb)
+	//判定是否满座
+	if !pos.Ready() {
+		return nil, errors.New("待玩家就坐")
+	}
+	//游戏设置
+	gc, pc := store.GetRoomConfig(body.RoomId)
 
-	//跟踪准备事件
-	traceId := countdown.NewTrackId(roomId)
-	//5 通知所有玩家
-	for _, p := range ps {
-		websocketNotify(roomId, p.Id, api.GameReadyEvent, traceId, api.GameReady{})
+	//TODO 每种玩法，独立逻辑处理
+	var handler ploy.GameDefine
+	switch gc.Mode {
+	case "laiz": //赖子
+		break
+	case "k5x": //卡5星
+		break
+	case "7d": //七对
+		break
+	case "sc": //四川
+		break
+	case "gz": //广东
+		break
+	}
+	//前置事件
+	handler.Init(gc, pc)
+
+	notifyHandler := &broadcastHandler{
+		proxy: handler,
 	}
 
-	//开启倒计时 & 通知庄家摸牌
-	countdown.New[api.GameReadyAck](traceId, len(ps), 30, func(data countdown.CallData[api.GameReadyAck]) {
+	//开启计时器
+	cd := engine.NewCountdown(30 * time.Second)
+	go cd.Run(notifyHandler, pos)
 
-		//从首摸牌
-		headTake := api.TakeCard{
-			RoomId:    body.RoomId,
-			GameId:    "",
-			Direction: 1,
-		}
+	//TODO 通知牌局开始
 
-		master := room.TurnPlayer()
-		websocketNotify(roomId, master.Id, api.TakeCardEvent, "", headTake)
-	})
 	return api.Empty, nil
 }
 
-//准备确认
-func startAck(w http.ResponseWriter, r *http.Request, body *api.GameReadyAck) (*api.EmptyData, error) {
-	countdown.Ready(body.EventId, body)
-	return api.Empty, nil
+type broadcastHandler struct {
+	proxy     ploy.GameDefine
+	exchanger *roomExchange
 }
 
-func startLoad(w http.ResponseWriter, r *http.Request, body *api.GameReadyAck) (*api.EmptyData, error) {
-
-	return nil, nil
+func (handler *broadcastHandler) Take(event *api.TakePayload) {
+	Broadcast(handler.exchanger, api.Packet(100, event))
 }
 
-// 缓存牌桌状态
-func storeTable(roomId string, tb *mj.Table) {
+func (handler *broadcastHandler) Put(ackId int, event *api.PutPayload) {
 
+	//广播出牌事件
+	Broadcast(handler.exchanger, api.Packet(101, event))
+
+	//广播待确认事件
+	Broadcast(handler.exchanger, api.Packet(102, &api.AckPayload{
+		Who:   event.Who,
+		Round: event.Round,
+		AckId: ackId,
+	}))
 }
 
-func tableQuery(roomId string) (*mj.Table, error) {
+func (handler *broadcastHandler) Race(event *api.RacePayload) {
+	Broadcast(handler.exchanger, api.Packet(103, event))
+}
 
-	return nil, nil
+func (handler *broadcastHandler) Win(event *api.RacePayload) bool {
+	Broadcast(handler.exchanger, api.Packet(104, event))
+	return handler.proxy.Finish()
+}
+
+func (handler *broadcastHandler) Ack(event *api.AckPayload) {
+	Broadcast(handler.exchanger, api.Packet(105, event))
+}
+
+func (handler *broadcastHandler) Next(who int, ok bool) {
+	Broadcast(handler.exchanger, api.Packet(106, &api.NextPayload{Who: who}))
+}
+
+func (handler *broadcastHandler) Quit() {
+	handler.proxy.Quit()
 }
