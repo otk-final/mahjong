@@ -115,3 +115,11 @@ func (pos *Position) Index(acctId string) (*api.Player, error) {
 	}
 	return m, nil
 }
+
+func (pos *Position) Len() int {
+	return len(pos.Joined())
+}
+
+func (pos *Position) Cap() int {
+	return pos.seatRing.Len()
+}

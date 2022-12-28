@@ -113,7 +113,7 @@ func (c Card) Kind() CardKind {
 			return k
 		}
 	}
-	return ""
+	return NilCard
 }
 
 //相同牌

@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"mahjong/ploy"
 	"mahjong/server/api"
 	"mahjong/server/store"
 	"mahjong/server/wrap"
@@ -24,7 +25,7 @@ func take(w http.ResponseWriter, r *http.Request, body *api.TakeParameter) (*api
 	}
 
 	//摸牌
-	takeTile := 0
+	var takeTile int
 	if body.Direction == -1 {
 		takeTile = roundCtx.Handler.Backward(own.Idx)
 	} else {
@@ -80,6 +81,16 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	}
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
+
+	//游戏策略
+	var provider ploy.GameDefine
+	eval, ok := provider.Evaluate()[body.RaceType]
+	if !ok {
+		return nil, errors.New("不支持当前操作")
+	}
+	if eval.Valid(roundCtx, own.Idx, body.Who, body.Tile) {
+		return nil, errors.New("不支持牌型")
+	}
 
 	//通知
 	roundCtx.Exchanger.PostRace(&api.RacePayload{

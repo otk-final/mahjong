@@ -11,17 +11,17 @@ import (
 type TileHandle interface {
 
 	// GetOuts 已出牌
-	GetOuts(pIdx int) []int
+	GetOuts(pIdx int) mj.Cards
 	// GetHands 手上牌
-	GetHands(pIdx int) []int
+	GetHands(pIdx int) mj.Cards
 	// GetRaces 生效牌
-	GetRaces(pIdx int) [][]int
+	GetRaces(pIdx int) []mj.Cards
 
 	AddTake(pIdx int, tile int)
 
 	AddPut(pIdx int, tile int)
 
-	AddRace(pIdx int, tiles []int, whoIdx int, tile int)
+	AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int)
 
 	Forward(pIdx int) int
 
@@ -116,22 +116,30 @@ func (tb *Table) Distribution(num int) map[int]mj.Cards {
 
 func (tb *Table) Forward() int {
 	defer tb.lock.Unlock()
-
 	tb.lock.Lock()
+
+	//empty
+	if len(tb.remains) == 0 {
+		return -1
+	}
+
 	tb.fIdx++
 
 	head := tb.remains[0]
-
 	tb.remains = tb.remains[1:]
 	return head
 }
 
 func (tb *Table) Backward() int {
 	defer tb.lock.Unlock()
-
 	tb.lock.Lock()
-	tb.bIdx++
 
+	//empty
+	if len(tb.remains) == 0 {
+		return -1
+	}
+
+	tb.bIdx++
 	tail := tb.remains[len(tb.remains)-1]
 	tb.remains = tb.remains[0 : len(tb.remains)-2]
 	return tail

@@ -4,6 +4,7 @@ import (
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/server/engine"
+	"mahjong/server/store"
 )
 
 type BaseProvider struct {
@@ -19,9 +20,9 @@ type BaseTileHandler struct {
 
 // PlayerTiles 玩家牌库
 type PlayerTiles struct {
-	hands      []int
-	races      [][]int
-	outs       []int
+	hands      mj.Cards
+	races      []mj.Cards
+	outs       mj.Cards
 	lastedTake int
 	lastedPut  int
 }
@@ -30,28 +31,51 @@ type PlayerTiles struct {
 type PlayerProfit struct {
 }
 
-func (b *BaseTileHandler) GetOuts(pIdx int) []int {
-
-	return nil
+func (b *BaseTileHandler) GetOuts(pIdx int) mj.Cards {
+	return b.tiles[pIdx].outs
 }
 
-func (b *BaseTileHandler) GetHands(pIdx int) []int {
-	return nil
+func (b *BaseTileHandler) GetHands(pIdx int) mj.Cards {
+	return b.tiles[pIdx].hands
 }
 
-func (b *BaseTileHandler) GetRaces(pIdx int) [][]int {
-	return nil
+func (b *BaseTileHandler) GetRaces(pIdx int) []mj.Cards {
+	return b.tiles[pIdx].races
 }
 
 func (b *BaseTileHandler) AddTake(pIdx int, tile int) {
+	own := b.tiles[pIdx]
 
+	own.lastedTake = tile
+	own.hands = append(own.hands, tile)
 }
 
 func (b *BaseTileHandler) AddPut(pIdx int, tile int) {
 
+	own := b.tiles[pIdx]
+
+	idx := -1
+	for i, t := range own.hands {
+		if t == tile {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return
+	}
+
+	own.lastedPut = tile
+
+	//update hands
+	own.hands = append(own.hands[:idx], own.hands[idx+1:]...)
+	own.outs = append(own.outs, tile)
 }
 
-func (b *BaseTileHandler) AddRace(pIdx int, tiles []int, whoIdx int, tile int) {
+func (b *BaseTileHandler) AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int) {
+	own := b.tiles[pIdx]
+	comb := append(tiles, tile)
+	own.races = append(own.races, comb)
 }
 
 func (b *BaseTileHandler) Forward(pIdx int) int {
@@ -70,14 +94,13 @@ func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) en
 func (bp *BaseProvider) initOps(gc *api.GameConfigure, pc *api.PaymentConfigure) *BaseTileHandler {
 
 	//掷骰子，洗牌，发牌
-	dice := engine.NewDice()
-	bp.dice = dice
+	bp.dice = engine.NewDice()
 
 	//洗牌
 	tiles := engine.Shuffle(bp.tiles)
 
 	//发牌
-	tb := engine.NewTable(dice, tiles)
+	tb := engine.NewTable(bp.dice, tiles)
 	members := tb.Distribution(gc.Nums)
 
 	//添加到上下文
@@ -91,8 +114,8 @@ func (bp *BaseProvider) initOps(gc *api.GameConfigure, pc *api.PaymentConfigure)
 	for k, v := range members {
 		opsCtx.tiles[k] = &PlayerTiles{
 			hands:      v,
-			races:      make([][]int, 0),
-			outs:       make([]int, 0),
+			races:      make([]mj.Cards, 0),
+			outs:       make(mj.Cards, 0),
 			lastedTake: 0,
 			lastedPut:  0,
 		}
@@ -109,9 +132,85 @@ func (bp *BaseProvider) Quit() {
 
 }
 
+func (bp *BaseProvider) Evaluate() map[api.RaceType]RaceEvaluate {
+	return map[api.RaceType]RaceEvaluate{
+		api.PairRace: &pairEvaluation{},
+		api.EatRace:  &eatEvaluation{},
+		api.GangRace: &gangEvaluation{},
+		api.WinRace:  &winEvaluation{},
+	}
+}
+
 func NewBaseProvider() GameDefine {
 	return &BaseProvider{
 		dice:  0,
 		tiles: mj.Library,
 	}
+}
+
+// 吃
+type eatEvaluation struct{}
+
+func (eval *eatEvaluation) Valid(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) bool {
+	//只能吃上家出的牌
+	if raceIdx-whoIdx != 1 || (raceIdx == (ctx.Position.Len()-1) && whoIdx != 0) {
+		return false
+	}
+	return ctx.Handler.GetHands(raceIdx).HasList(tile)
+}
+
+func (eval *eatEvaluation) Plan(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) []mj.Cards {
+	//TODO implement me
+	panic("implement me")
+}
+
+// 碰
+type pairEvaluation struct{}
+
+func (eval *pairEvaluation) Valid(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) bool {
+	//不能碰自己打的牌
+	if raceIdx == whoIdx {
+		return false
+	}
+	return ctx.Handler.GetHands(raceIdx).HasPair(tile)
+}
+
+func (eval *pairEvaluation) Plan(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) []mj.Cards {
+	return nil
+}
+
+// 杠
+type gangEvaluation struct {
+}
+
+func (eval *gangEvaluation) Valid(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) bool {
+	//自杠 从已判断中的牌检索
+	if raceIdx == whoIdx {
+		races := ctx.Handler.GetRaces(raceIdx)
+		for _, comb := range races {
+			if comb.HasGang(tile) {
+				return true
+			}
+		}
+	}
+	return ctx.Handler.GetHands(raceIdx).HasGang(tile)
+}
+
+func (eval *gangEvaluation) Plan(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) []mj.Cards {
+	return nil
+}
+
+// 胡
+type winEvaluation struct {
+}
+
+func (eval *winEvaluation) Valid(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) bool {
+	hands := ctx.Handler.GetHands(raceIdx)
+
+	return true
+}
+
+func (eval *winEvaluation) Plan(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) []mj.Cards {
+	//TODO implement me
+	panic("implement me")
 }

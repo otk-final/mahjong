@@ -67,11 +67,11 @@ func NewExchanger(timeout time.Duration) *Exchanger {
 func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 
 	//计时器
-	dt := time.NewTicker(exc.timeout)
+	countdown := time.NewTicker(exc.timeout)
 
 	//释放
 	defer func() {
-		dt.Stop()
+		countdown.Stop()
 		close(exc.takeCh)
 		close(exc.putCh)
 		close(exc.raceCh)
@@ -92,7 +92,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 		select {
 		case t := <-exc.takeCh:
 			//从摸牌开始，开始倒计时
-			dt.Reset(exc.timeout)
+			countdown.Reset(exc.timeout)
 			//牌库摸完了 结束当前回合
 			if t.Tile == -1 {
 				//退出
@@ -114,7 +114,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			aq.reset()
 
 			//重制定时器
-			dt.Reset(exc.timeout)
+			countdown.Reset(exc.timeout)
 
 			//事件通知
 			if r.RaceType == api.WinRace { //根据业务规则判断胡牌后是否继续
@@ -135,7 +135,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 				who := pos.next()
 				handler.Next(who, true)
 			}
-		case <-dt.C:
+		case <-countdown.C:
 			//并清除待ack队列
 			aq.reset()
 			//超时，玩家无任何动作

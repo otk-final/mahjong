@@ -42,13 +42,13 @@ func sameCardGroup(sameCards []int) map[int][]int {
 func NewABCMapper(kind CardKind, order string) [][]int {
 	rate := 0
 	if kind == WanCard { //万 1 - 9
-		rate = 0
+		rate = W1 - 1
 	}
 	if kind == TiaoCard { //条 11 - 19
-		rate = 10
+		rate = L1 - 1
 	}
 	if kind == TongCard { //筒 21 - 29
-		rate = 20
+		rate = T1 - 1
 	}
 
 	orderMapper := defaultABCMapperAsc

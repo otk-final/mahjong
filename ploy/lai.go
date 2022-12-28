@@ -1,6 +1,7 @@
 package ploy
 
 import (
+	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/server/engine"
 )
@@ -18,6 +19,9 @@ func NewLaiProvider() GameDefine {
 }
 
 func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.TileHandle {
+
+	//牌库
+	lp.tiles = mj.LoadLibrary(gc.Tiles...)
 
 	//init
 	handler := lp.initOps(gc, pc)

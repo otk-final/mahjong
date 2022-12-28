@@ -2,6 +2,8 @@ package mj
 
 type CardKind string
 
+var NilCard CardKind = "nil"
+
 var WanCard CardKind = "wan"
 
 //万 1 - 9

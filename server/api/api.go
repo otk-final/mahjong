@@ -1,9 +1,11 @@
 package api
 
+import "mahjong/mj"
+
 type GameConfigure struct {
-	Mode  string   `json:"mode"`  //模型
-	Nums  int      `json:"nums"`  //玩家数
-	Tiles []string `json:"tiles"` //牌库（万，筒，条，风，中，发，白）
+	Mode  string        `json:"mode"`  //模型
+	Nums  int           `json:"nums"`  //玩家数
+	Tiles []mj.CardKind `json:"tiles"` //牌库（万，筒，条，风，中，发，白）
 }
 
 const (
