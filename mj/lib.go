@@ -1,7 +1,7 @@
 package mj
 
 // Library 牌库
-var Library = []int{
+var Library = Cards{
 	//筒
 	T1, T1, T1, T1,
 	T2, T2, T2, T2,
@@ -44,34 +44,52 @@ var Library = []int{
 }
 
 type Card int
-type CardNeighbor []int
-
-// Cards 默认牌组
 type Cards []int
 
+var CardRangeMap = map[CardKind][]int{
+	WanCard:   {W1, W9},
+	TiaoCard:  {L1, L9},
+	TongCard:  {T1, T9},
+	WindCard:  {EAST, NORTH},
+	OtherCard: {Zh, Ba},
+}
+
 // LoadLibrary 指定牌库
-func LoadLibrary(wind bool, other bool) []int {
+func LoadLibrary(kinds ...CardKind) []int {
 	newLib := make([]int, 0)
-	//filter 东南西北
-	for _, k := range Library {
-		if wind && (k >= EAST && k <= NORTH) {
+
+	//copy
+	temp := make([]int, 0)
+	copy(temp, Library)
+	filter := func(kind CardKind) bool {
+		for _, k := range kinds {
+			if k == kind {
+				return true
+			}
+		}
+		return false
+	}
+
+	//filter
+	for _, tile := range temp {
+		kind := Card(tile).Kind()
+		if !filter(kind) {
 			continue
 		}
-		//filter 中发白
-		if other && (k >= Zh && k <= Ba) {
-			continue
+		limit := CardRangeMap[kind]
+		if limit[0] <= tile && tile <= limit[1] {
+			newLib = append(newLib, tile)
 		}
-		newLib = append(newLib, k)
 	}
 	return newLib
 }
 
 //相邻的牌 只针对条，万，筒
-func (c Card) getNeighbors() []CardNeighbor {
+func (c Card) getNeighbors() []Cards {
 	if c > 29 {
 		return nil
 	}
-	nb := make([]CardNeighbor, 0)
+	nb := make([]Cards, 0)
 	//默认相邻
 	nb = append(nb, []int{int(c + 1), int(c + 2)})
 	nb = append(nb, []int{int(c - 2), int(c - 1)})
@@ -89,7 +107,12 @@ func (c Card) getNeighbors() []CardNeighbor {
 	return nb
 }
 
-func (c Card) Kind() string {
+func (c Card) Kind() CardKind {
+	for k, v := range CardRangeMap {
+		if v[0] <= int(c) && int(c) <= v[1] {
+			return k
+		}
+	}
 	return ""
 }
 

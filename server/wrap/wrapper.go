@@ -79,6 +79,10 @@ func (receiver AnyHandler[T, R]) Func() http.HandlerFunc {
 	}
 }
 
+func Render() *render.Render {
+	return respRender
+}
+
 func NewWrapper[T any, R any](fn AnyFunc[T, R]) AnyHandler[T, R] {
 	return AnyHandler[T, R]{
 		fn: fn,

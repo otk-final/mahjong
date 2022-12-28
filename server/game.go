@@ -49,38 +49,44 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	case "gz": //广东
 		break
 	}
-	//前置事件
-	handler.Init(gc, pc)
-
+	//前置事件 初始化牌库
+	tileHandler := handler.Init(gc, pc)
 	notifyHandler := &broadcastHandler{
-		proxy: handler,
+		proxy:       handler,
+		tileHandler: tileHandler,
 	}
 
 	//开启计时器
-	cd := engine.NewCountdown(30 * time.Second)
-	go cd.Run(notifyHandler, pos)
+	exchanger := engine.NewExchanger(30 * time.Second)
+	go exchanger.Run(notifyHandler, pos)
 
+	//注册缓存
+	store.RegisterRoundCtx(body.RoomId, pos, exchanger, tileHandler)
 	//TODO 通知牌局开始
+
+	Broadcast()
 
 	return api.Empty, nil
 }
 
 type broadcastHandler struct {
-	proxy     ploy.GameDefine
-	exchanger *roomExchange
+	proxy       ploy.GameDefine
+	roundCtx    store.RoundCtx
+	tileHandler engine.TileHandle
+	dispatcher  *RoomDispatcher
 }
 
 func (handler *broadcastHandler) Take(event *api.TakePayload) {
-	Broadcast(handler.exchanger, api.Packet(100, event))
+	Broadcast(handler.dispatcher, api.Packet(100, event))
 }
 
 func (handler *broadcastHandler) Put(ackId int, event *api.PutPayload) {
 
 	//广播出牌事件
-	Broadcast(handler.exchanger, api.Packet(101, event))
+	Broadcast(handler.dispatcher, api.Packet(101, event))
 
 	//广播待确认事件
-	Broadcast(handler.exchanger, api.Packet(102, &api.AckPayload{
+	Broadcast(handler.dispatcher, api.Packet(102, &api.AckPayload{
 		Who:   event.Who,
 		Round: event.Round,
 		AckId: ackId,
@@ -88,20 +94,20 @@ func (handler *broadcastHandler) Put(ackId int, event *api.PutPayload) {
 }
 
 func (handler *broadcastHandler) Race(event *api.RacePayload) {
-	Broadcast(handler.exchanger, api.Packet(103, event))
+	Broadcast(handler.dispatcher, api.Packet(103, event))
 }
 
 func (handler *broadcastHandler) Win(event *api.RacePayload) bool {
-	Broadcast(handler.exchanger, api.Packet(104, event))
+	Broadcast(handler.dispatcher, api.Packet(104, event))
 	return handler.proxy.Finish()
 }
 
 func (handler *broadcastHandler) Ack(event *api.AckPayload) {
-	Broadcast(handler.exchanger, api.Packet(105, event))
+	Broadcast(handler.dispatcher, api.Packet(105, event))
 }
 
 func (handler *broadcastHandler) Next(who int, ok bool) {
-	Broadcast(handler.exchanger, api.Packet(106, &api.NextPayload{Who: who}))
+	Broadcast(handler.dispatcher, api.Packet(106, &api.NextPayload{Who: who}))
 }
 
 func (handler *broadcastHandler) Quit() {

@@ -24,7 +24,3 @@ func UpdatePosition(roomId string, pos *engine.Position) error {
 func GetPosition(roomId string) (*engine.Position, error) {
 	return nil, nil
 }
-
-func GetCountdown(roomId string) (*engine.Countdown, error) {
-	return nil, nil
-}

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -28,7 +27,7 @@ func wsRoute() http.HandlerFunc {
 			return
 		}
 		//判断房间是否存在
-		roomId := mux.Vars(request)["roomId"]
+		roomId := mux.Vars(request)["RoomId"]
 		conn, err := wu.Upgrade(writer, request, writer.Header())
 		if err != nil {
 			return
@@ -104,18 +103,4 @@ func (wsc *netChan) Close() {
 
 func (wsc *netChan) Key() string {
 	return fmt.Sprintf("%s#%s", wsc.roomId, wsc.identity.UserId)
-}
-
-//回执
-func websocketNotify[T any](roomId string, targetId string, event api.WebEvent, eventId string, payload T) {
-	chKey := fmt.Sprintf("%s#%s", roomId, targetId)
-	temp, ok := netChanMap.Load(chKey)
-	if !ok {
-		return
-	}
-	//序列化 json
-	msg := &api.WebPacket[T]{Event: event, EventId: eventId, Payload: payload}
-	packet, _ := json.Marshal(msg)
-
-	temp.(*netChan).write <- packet
 }

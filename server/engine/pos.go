@@ -12,6 +12,7 @@ type Position struct {
 	lock     *sync.Mutex
 	seatRing *ring.Ring  //座位
 	master   *api.Player //庄家
+	members  map[string]*api.Player
 }
 
 func NewPosition(members int, master *api.Player) (*Position, error) {
@@ -23,6 +24,7 @@ func NewPosition(members int, master *api.Player) (*Position, error) {
 		lock:     &sync.Mutex{},
 		seatRing: ring.New(members),
 		master:   master,
+		members:  make(map[string]*api.Player, members),
 	}, nil
 }
 
@@ -84,6 +86,7 @@ func (pos *Position) Join(p *api.Player) error {
 	}
 	exist.Value = p
 
+	pos.members[p.AcctId] = p
 	return nil
 }
 
@@ -91,7 +94,7 @@ func (pos *Position) Ready() bool {
 	return false
 }
 
-func (pos *Position) Players() []*api.Player {
+func (pos *Position) Joined() []*api.Player {
 	joins := make([]*api.Player, 0)
 	pos.seatRing.Do(func(a any) {
 		if a != nil {
@@ -103,4 +106,12 @@ func (pos *Position) Players() []*api.Player {
 
 func (pos *Position) IsMaster(acctId string) bool {
 	return strings.EqualFold(pos.master.AcctId, acctId)
+}
+
+func (pos *Position) Index(acctId string) (*api.Player, error) {
+	m, ok := pos.members[acctId]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return m, nil
 }

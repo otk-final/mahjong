@@ -47,7 +47,7 @@ const (
 	T9
 )
 
-var FengCard CardKind = "feng"
+var WindCard CardKind = "feng"
 
 //风 31 - 34
 const (

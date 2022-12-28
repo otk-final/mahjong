@@ -35,17 +35,12 @@ const (
 type TakePayload struct {
 	Who   int `json:"who"`
 	Round int `json:"round"`
-	Take  int `json:"take"`
+	Tile  int `json:"take"`
 }
 type PutPayload struct {
 	Who   int `json:"who"`
 	Round int `json:"round"`
-	Put   int `json:"put"`
-}
-
-type PutAckPayload struct {
-	AckId int `json:"ackId"`
-	PutPayload
+	Tile  int `json:"put"`
 }
 
 type RacePayload struct {

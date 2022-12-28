@@ -1,15 +1,14 @@
 package engine
 
 import (
-	"errors"
 	"mahjong/server/api"
 	"time"
 )
 
-type Countdown struct {
+type Exchanger struct {
 	//超时时间
 	timeout time.Duration
-	locator *Position
+	pos     *Position
 	takeCh  chan *api.TakePayload
 	putCh   chan *api.PutPayload
 	raceCh  chan *api.RacePayload
@@ -55,8 +54,8 @@ func (aq *ackQueue) ready(who int, ackId int) bool {
 	return aq.ackInit == 0
 }
 
-func NewCountdown(timeout time.Duration) *Countdown {
-	return &Countdown{
+func NewExchanger(timeout time.Duration) *Exchanger {
+	return &Exchanger{
 		timeout: timeout,
 		takeCh:  make(chan *api.TakePayload, 0),
 		putCh:   make(chan *api.PutPayload, 0),
@@ -65,21 +64,21 @@ func NewCountdown(timeout time.Duration) *Countdown {
 	}
 }
 
-func (cd *Countdown) Run(handler NotifyHandle, pos *Position) {
+func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 
 	//计时器
-	dt := time.NewTicker(cd.timeout)
+	dt := time.NewTicker(exc.timeout)
 
 	//释放
 	defer func() {
 		dt.Stop()
-		close(cd.takeCh)
-		close(cd.putCh)
-		close(cd.raceCh)
-		close(cd.ackCh)
+		close(exc.takeCh)
+		close(exc.putCh)
+		close(exc.raceCh)
+		close(exc.ackCh)
 	}()
 
-	cd.locator = pos
+	exc.pos = pos
 
 	//从庄家开始
 	masterIdx := pos.start()
@@ -91,23 +90,23 @@ func (cd *Countdown) Run(handler NotifyHandle, pos *Position) {
 	//堵塞监听
 	for {
 		select {
-		case t := <-cd.takeCh:
+		case t := <-exc.takeCh:
 			//从摸牌开始，开始倒计时
-			dt.Reset(cd.timeout)
+			dt.Reset(exc.timeout)
 			//牌库摸完了 结束当前回合
-			if t.Take == -1 {
+			if t.Tile == -1 {
 				//退出
 				handler.Quit()
 				return
 			}
 			//摸牌事件
 			handler.Take(t)
-		case p := <-cd.putCh:
+		case p := <-exc.putCh:
 			//每当出一张牌，均需等待其他玩家确认或者抢占
 			ackId := aq.ackId()
 			//出牌事件
 			handler.Put(ackId, p)
-		case r := <-cd.raceCh:
+		case r := <-exc.raceCh:
 			//抢占 碰，杠，吃，胡... 设置当前回合
 			pos.move(r.Who)
 
@@ -115,7 +114,7 @@ func (cd *Countdown) Run(handler NotifyHandle, pos *Position) {
 			aq.reset()
 
 			//重制定时器
-			dt.Reset(cd.timeout)
+			dt.Reset(exc.timeout)
 
 			//事件通知
 			if r.RaceType == api.WinRace { //根据业务规则判断胡牌后是否继续
@@ -128,7 +127,7 @@ func (cd *Countdown) Run(handler NotifyHandle, pos *Position) {
 			} else {
 				handler.Race(r)
 			}
-		case a := <-cd.ackCh:
+		case a := <-exc.ackCh:
 			handler.Ack(a)
 			//就绪事件
 			if aq.ready(a.Who, a.AckId) {
@@ -147,23 +146,18 @@ func (cd *Countdown) Run(handler NotifyHandle, pos *Position) {
 	}
 }
 
-func (cd *Countdown) ToTake(e *api.TakePayload) error {
-	if !cd.locator.Check(e.Who) {
-		return errors.New("not current round")
-	}
-	cd.takeCh <- e
-	return nil
+func (exc *Exchanger) PostTake(e *api.TakePayload) {
+	exc.takeCh <- e
 }
-func (cd *Countdown) ToPut(e *api.PutPayload) error {
-	if !cd.locator.Check(e.Who) {
-		return errors.New("not current round")
-	}
-	cd.putCh <- e
-	return nil
+func (exc *Exchanger) PostPut(e *api.PutPayload) {
+	exc.putCh <- e
 }
-func (cd *Countdown) ToRace(e *api.RacePayload) {
-	cd.raceCh <- e
+func (exc *Exchanger) PostRace(e *api.RacePayload) {
+	exc.raceCh <- e
 }
-func (cd *Countdown) ToAck(e *api.AckPayload) {
-	cd.ackCh <- e
+func (exc *Exchanger) PostAck(e *api.AckPayload) {
+	exc.ackCh <- e
+}
+func (exc *Exchanger) GetPosition() *Position {
+	return exc.pos
 }

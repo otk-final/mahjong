@@ -33,17 +33,17 @@ func Apis() *mux.Router {
 	play.Path("/skip").HandlerFunc(wrap.NewWrapper(skip).Func())
 
 	//websocket链接
-	muxRouter.Handle("/ws/{roomId}", wsRoute())
+	muxRouter.Handle("/ws/{RoomId}", wsRoute())
 	return muxRouter
 }
 
-type roomExchange struct {
-	roomId  string
+type RoomDispatcher struct {
+	RoomId  string
 	members []*api.Player
 }
 
-func (rx *roomExchange) GetPlayer(acctId string) *netChan {
-	chKey := fmt.Sprintf("%s#%s", rx.roomId, acctId)
+func (rx *RoomDispatcher) GetPlayer(acctId string) *netChan {
+	chKey := fmt.Sprintf("%s#%s", rx.RoomId, acctId)
 	temp, ok := netChanMap.Load(chKey)
 	if !ok {
 		return nil
@@ -51,12 +51,12 @@ func (rx *roomExchange) GetPlayer(acctId string) *netChan {
 	return temp.(*netChan)
 }
 
-func Broadcast[T any](exchanger *roomExchange, packet *api.WebPacket[T]) {
+func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
 	//序列化 json
 	msg, _ := json.Marshal(packet)
 	//所有成员
-	for _, member := range exchanger.members {
-		memberChan := exchanger.GetPlayer(member.AcctId)
+	for _, member := range dispatcher.members {
+		memberChan := dispatcher.GetPlayer(member.AcctId)
 		memberChan.write <- msg
 	}
 }

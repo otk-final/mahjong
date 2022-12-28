@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"mahjong/server/api"
 	"mahjong/server/store"
 	"mahjong/server/wrap"
@@ -9,50 +10,85 @@ import (
 
 // 摸牌
 func take(w http.ResponseWriter, r *http.Request, body *api.TakeParameter) (*api.NoResp, error) {
-
 	header := wrap.GetHeader(r)
+	//上下文
+	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
+	if err != nil {
+		return nil, err
+	}
+	//玩家信息
+	own, _ := roundCtx.Player(header.UserId)
+	//判定回合
+	if !roundCtx.Position.Check(own.Idx) {
+		return nil, errors.New("非当前回合")
+	}
 
 	//摸牌
+	takeTile := 0
 	if body.Direction == -1 {
-		//从后摸
-
+		takeTile = roundCtx.Handler.Backward(own.Idx)
 	} else {
-		//从前摸
-
-	}
-	takeTile := 1
-
-	//计时器
-	cd, err := store.GetCountdown(body.RoomId)
-	if err != nil {
-		return nil, err
+		takeTile = roundCtx.Handler.Forward(own.Idx)
 	}
 
-	//通知处理
-	err = cd.ToTake(&api.TakePayload{Who: 0, Round: 9, Take: takeTile})
-	if err != nil {
-		return nil, err
+	//结束
+	if takeTile == -1 {
+		return nil, nil
 	}
+
+	//保存摸到的牌
+	roundCtx.Handler.AddTake(own.Idx, takeTile)
+	//通知
+	roundCtx.Exchanger.PostTake(&api.TakePayload{Who: own.Idx, Round: roundCtx.Round, Tile: takeTile})
 
 	return api.Empty, nil
 }
 
 //出牌
 func put(w http.ResponseWriter, r *http.Request, body *api.PutParameter) (*api.NoResp, error) {
-	return nil, nil
+	header := wrap.GetHeader(r)
+	//上下文
+	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
+	if err != nil {
+		return nil, err
+	}
+	//玩家信息
+	own, _ := roundCtx.Player(header.UserId)
+	//判定回合
+	if !roundCtx.Position.Check(own.Idx) {
+		return nil, errors.New("非当前回合")
+	}
+	//保存
+	roundCtx.Handler.AddPut(own.Idx, body.Tile)
+	//通知
+	roundCtx.Exchanger.PostPut(&api.PutPayload{
+		Who:   own.Idx,
+		Round: roundCtx.Round,
+		Tile:  body.Tile,
+	})
+	return api.Empty, nil
 }
 
 //吃碰杠...
 func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api.RacePost, error) {
 
-	//处理
-
-	//通知
-	cd, err := store.GetCountdown(body.RoomId)
+	header := wrap.GetHeader(r)
+	//上下文
+	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
 	if err != nil {
 		return nil, err
 	}
-	cd.ToRace(nil)
+	//玩家信息
+	own, _ := roundCtx.Player(header.UserId)
+
+	//通知
+	roundCtx.Exchanger.PostRace(&api.RacePayload{
+		Who:       own.Idx,
+		Round:     roundCtx.Round,
+		RaceType:  body.RaceType,
+		HandTiles: body.HandTiles,
+		Tile:      body.Tile,
+	})
 
 	//后置事件
 	var nextAction *api.RacePost
@@ -79,7 +115,21 @@ func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*ap
 
 //过
 func skip(w http.ResponseWriter, r *http.Request, body *api.AckParameter) (*api.NoResp, error) {
-	return nil, nil
+	header := wrap.GetHeader(r)
+	//上下文
+	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
+	if err != nil {
+		return nil, err
+	}
+	//玩家信息
+	own, _ := roundCtx.Player(header.UserId)
+	//通知
+	roundCtx.Exchanger.PostAck(&api.AckPayload{
+		Who:   own.Idx,
+		Round: roundCtx.Round,
+		AckId: body.AckId,
+	})
+	return api.Empty, nil
 }
 
 //胡牌

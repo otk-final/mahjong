@@ -78,8 +78,8 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	}
 
 	//通知有新玩家加入
-	joins := pos.Players()
-	rx := &roomExchange{roomId: body.RoomId, members: joins}
+	joins := pos.Joined()
+	rx := &RoomDispatcher{RoomId: body.RoomId, members: joins}
 	Broadcast(rx, api.Packet(99, &api.JoinPayload{Member: member, Round: 0}))
 
 	//房间信息

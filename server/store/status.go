@@ -1,13 +1,25 @@
 package store
 
-// RoundDefine 当局状态
-type RoundDefine interface {
-	// LaiTile 赖子牌
-	LaiTile() int
-	// OutTiles 已出牌
-	OutTiles(pIdx int) []int
-	// HandTiles 手上牌
-	HandTiles(pIdx int) []int
-	// RaceTiles 生效牌
-	RaceTiles(pIdx int) [][]int
+import (
+	"mahjong/server/api"
+	"mahjong/server/engine"
+)
+
+type RoundCtx struct {
+	Round     int
+	Position  *engine.Position
+	Exchanger *engine.Exchanger
+	Handler   engine.TileHandle
+}
+
+func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
+	return ctx.Position.Index(acctId)
+}
+
+func LoadRoundCtx(roomId string, acctId string) (*RoundCtx, error) {
+	return nil, nil
+}
+
+func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.TileHandle) {
+
 }
