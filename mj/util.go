@@ -149,7 +149,7 @@ func FilterCards(kind CardKind, cards []int) []int {
 		begin, end = L1, L9
 	case TongCard:
 		begin, end = T1, T9
-	case FengCard:
+	case WindCard:
 		begin, end = EAST, NORTH
 	case OtherCard:
 		begin, end = Zh, Ba

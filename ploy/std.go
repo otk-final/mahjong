@@ -6,7 +6,7 @@ import (
 	"mahjong/server/engine"
 )
 
-type BaseGameHandler struct {
+type BaseProvider struct {
 	dice  int //骰子数
 	tiles mj.Cards
 }
@@ -31,6 +31,7 @@ type PlayerProfit struct {
 }
 
 func (b *BaseTileHandler) GetOuts(pIdx int) []int {
+
 	return nil
 }
 
@@ -54,28 +55,26 @@ func (b *BaseTileHandler) AddRace(pIdx int, tiles []int, whoIdx int, tile int) {
 }
 
 func (b *BaseTileHandler) Forward(pIdx int) int {
-	//TODO implement me
-	panic("implement me")
+	return b.table.Forward()
 }
 
 func (b *BaseTileHandler) Backward(pIdx int) int {
-	//TODO implement me
-	panic("implement me")
+	return b.table.Backward()
 }
 
-func (handler BaseGameHandler) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.TileHandle {
+func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.TileHandle {
 	//创建上下文处理器
-	return handler.initOps(gc, pc)
+	return bp.initOps(gc, pc)
 }
 
-func (handler BaseGameHandler) initOps(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.TileHandle {
+func (bp *BaseProvider) initOps(gc *api.GameConfigure, pc *api.PaymentConfigure) *BaseTileHandler {
 
 	//掷骰子，洗牌，发牌
 	dice := engine.NewDice()
-	handler.dice = dice
+	bp.dice = dice
 
 	//洗牌
-	tiles := engine.Shuffle(handler.tiles)
+	tiles := engine.Shuffle(bp.tiles)
 
 	//发牌
 	tb := engine.NewTable(dice, tiles)
@@ -102,10 +101,17 @@ func (handler BaseGameHandler) initOps(gc *api.GameConfigure, pc *api.PaymentCon
 	return opsCtx
 }
 
-func (handler BaseGameHandler) Finish() bool {
+func (bp *BaseProvider) Finish() bool {
 	return false
 }
 
-func (handler BaseGameHandler) Quit() {
+func (bp *BaseProvider) Quit() {
 
+}
+
+func NewBaseProvider() GameDefine {
+	return &BaseProvider{
+		dice:  0,
+		tiles: mj.Library,
+	}
 }

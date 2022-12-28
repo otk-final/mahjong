@@ -35,10 +35,13 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	//游戏设置
 	gc, pc := store.GetRoomConfig(body.RoomId)
 
-	//TODO 每种玩法，独立逻辑处理
-	var handler ploy.GameDefine
+	//每种玩法，独立逻辑处理
+	var provider ploy.GameDefine
 	switch gc.Mode {
+	case "std": //标准
+		provider = ploy.NewBaseProvider()
 	case "laiz": //赖子
+		provider = ploy.NewLaiProvider()
 		break
 	case "k5x": //卡5星
 		break
@@ -49,10 +52,11 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	case "gz": //广东
 		break
 	}
+
 	//前置事件 初始化牌库
-	tileHandler := handler.Init(gc, pc)
+	tileHandler := provider.Init(gc, pc)
 	notifyHandler := &broadcastHandler{
-		proxy:       handler,
+		provider:    provider,
 		tileHandler: tileHandler,
 	}
 
@@ -62,15 +66,15 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 
 	//注册缓存
 	store.RegisterRoundCtx(body.RoomId, pos, exchanger, tileHandler)
-	//TODO 通知牌局开始
 
-	Broadcast()
+	//通知牌局开始
+	Broadcast(nil, api.Packet(1, nil))
 
 	return api.Empty, nil
 }
 
 type broadcastHandler struct {
-	proxy       ploy.GameDefine
+	provider    ploy.GameDefine
 	roundCtx    store.RoundCtx
 	tileHandler engine.TileHandle
 	dispatcher  *RoomDispatcher
@@ -99,7 +103,7 @@ func (handler *broadcastHandler) Race(event *api.RacePayload) {
 
 func (handler *broadcastHandler) Win(event *api.RacePayload) bool {
 	Broadcast(handler.dispatcher, api.Packet(104, event))
-	return handler.proxy.Finish()
+	return handler.provider.Finish()
 }
 
 func (handler *broadcastHandler) Ack(event *api.AckPayload) {
@@ -111,5 +115,5 @@ func (handler *broadcastHandler) Next(who int, ok bool) {
 }
 
 func (handler *broadcastHandler) Quit() {
-	handler.proxy.Quit()
+	handler.provider.Quit()
 }
