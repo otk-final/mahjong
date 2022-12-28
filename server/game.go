@@ -73,6 +73,12 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	return api.Empty, nil
 }
 
+//下一局
+func next(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoResp, error) {
+
+	return nil, nil
+}
+
 type broadcastHandler struct {
 	provider    ploy.GameDefine
 	roundCtx    store.RoundCtx

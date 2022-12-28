@@ -22,6 +22,7 @@ func Apis() *mux.Router {
 	//游戏
 	game := muxRouter.Methods("POST").PathPrefix("/game").Subrouter()
 	game.Path("/start").HandlerFunc(wrap.NewWrapper(start).Func())
+	game.Path("/next").HandlerFunc(wrap.NewWrapper(next).Func())
 
 	//玩家事件
 	play := muxRouter.Methods("POST").PathPrefix("/play").Subrouter()
