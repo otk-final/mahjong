@@ -88,7 +88,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	if !ok {
 		return nil, errors.New("不支持当前操作")
 	}
-	if eval.Valid(roundCtx, own.Idx, body.Who, body.Tile) {
+	if eval.Eval(roundCtx, own.Idx, body.Who, body.Tile) {
 		return nil, errors.New("不支持牌型")
 	}
 
@@ -104,13 +104,13 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	//后置事件
 	var nextAction *api.RacePost
 	switch body.RaceType {
-	case api.GangRace: //杠，从后摸
+	case api.EEEERace, api.LaiRace, api.GuiRace: //杠，从后摸
 		nextAction = &api.RacePost{Action: "take", Direction: -1}
 		break
-	case api.EatRace: //吃，出牌
+	case api.ABCRace: //吃，出牌
 		nextAction = &api.RacePost{Action: "put", Direction: 0}
 		break
-	case api.PairRace: //碰，出牌
+	case api.DDDRace, api.CaoRace: //碰，出牌
 		nextAction = &api.RacePost{Action: "put", Direction: 0}
 		break
 	default:

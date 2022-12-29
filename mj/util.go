@@ -66,9 +66,11 @@ type WinChecker struct {
 	Filters [][]WinFilterFunc
 }
 type WinComb struct {
-	ABC []Cards
-	DDD []Cards
-	EE  Cards
+	OK    bool
+	ABC   []Cards
+	DDD   []Cards
+	EE    Cards
+	Parts Cards
 }
 
 func NewWinChecker() *WinChecker {
@@ -89,9 +91,10 @@ func (win *WinChecker) Check(data Cards) (bool, *WinComb) {
 
 		//缓存结果
 		out := &WinComb{
-			ABC: make([]Cards, 0),
-			DDD: make([]Cards, 0),
-			EE:  make(Cards, 0),
+			ABC:   make([]Cards, 0),
+			DDD:   make([]Cards, 0),
+			EE:    make(Cards, 0),
+			Parts: make(Cards, 0),
 		}
 		for _, plan := range plans {
 			tiles = plan(out, tiles)
@@ -100,8 +103,39 @@ func (win *WinChecker) Check(data Cards) (bool, *WinComb) {
 		//将牌判断
 		if len(tiles) == 2 && tiles[0] == tiles[1] {
 			out.EE = tiles
+			out.OK = true
 			return true, out
 		}
 	}
 	return false, nil
+}
+
+func (win *WinChecker) CheckAll(data Cards) []*WinComb {
+
+	all := make([]*WinComb, 0)
+	for _, plans := range win.Filters {
+		tiles := make(Cards, len(data))
+		copy(tiles, data)
+		//缓存结果
+		out := &WinComb{
+			ABC:   make([]Cards, 0),
+			DDD:   make([]Cards, 0),
+			EE:    make(Cards, 0),
+			Parts: make(Cards, 0),
+		}
+		for _, plan := range plans {
+			tiles = plan(out, tiles)
+		}
+
+		//将牌判断
+		if len(tiles) == 2 && tiles[0] == tiles[1] {
+			out.EE = tiles
+			out.OK = true
+		} else {
+			out.OK = false
+			out.Parts = tiles
+		}
+		all = append(all, out)
+	}
+	return all
 }

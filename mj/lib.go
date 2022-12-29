@@ -121,6 +121,12 @@ func (c Cards) Index(mj int) int {
 	return -1
 }
 
-func (c Cards) Append(mj int) Cards {
-	return append(c, mj)
+func (c Cards) Indexes(mj int) []int {
+	is := make([]int, 0)
+	for i := 0; i < len(c); i++ {
+		if c[i] == mj {
+			is = append(is, i)
+		}
+	}
+	return is
 }

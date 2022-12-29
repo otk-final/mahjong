@@ -18,7 +18,5 @@ type GameDefine interface {
 // RaceEvaluate 碰，吃，杠，胡...评估
 type RaceEvaluate interface {
 	// Valid 可行判断
-	Valid(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) bool
-	// Plan 方案
-	Plan(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) []mj.Cards
+	Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards)
 }

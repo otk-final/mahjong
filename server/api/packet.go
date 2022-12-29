@@ -16,20 +16,29 @@ type RaceType int
 
 var RaceNames = map[RaceType]string{
 	WinRace:  "胡",
-	PairRace: "碰",
-	EatRace:  "吃",
-	GangRace: "杠",
+	DDDRace:  "碰",
+	ABCRace:  "吃",
+	EEEERace: "杠",
+	LaiRace:  "癞",
+	CaoRace:  "朝",
+	GuiRace:  "鬼",
 }
 
 const (
 	// WinRace 胡
 	WinRace RaceType = iota + 1
-	// PairRace 碰
-	PairRace
-	// EatRace 吃
-	EatRace
-	// GangRace 杠
-	GangRace
+	// DDDRace 碰
+	DDDRace
+	// ABCRace 吃
+	ABCRace
+	// EEEERace 杠
+	EEEERace
+	// LaiRace 癞
+	LaiRace
+	// CaoRace 朝
+	CaoRace
+	// GuiRace 鬼
+	GuiRace
 )
 
 type TakePayload struct {

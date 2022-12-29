@@ -1,3 +1,3 @@
 package ploy
 
-// 卡5星
+//七对

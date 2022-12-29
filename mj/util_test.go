@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func FuzzName(f *testing.F) {
-	f.Add()
-	f.Fuzz(func() {})
+func TestName(t *testing.T) {
+	tiles := Cards{1}
+	t.Log(tiles[:len(tiles)-1])
 }
 
 func TestFilterABC(t *testing.T) {
