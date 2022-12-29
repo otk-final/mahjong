@@ -59,7 +59,7 @@ func LoadLibrary(kinds ...CardKind) []int {
 	newLib := make([]int, 0)
 
 	//copy
-	temp := make([]int, 0)
+	temp := make([]int, len(Library))
 	copy(temp, Library)
 	filter := func(kind CardKind) bool {
 		for _, k := range kinds {
@@ -84,29 +84,6 @@ func LoadLibrary(kinds ...CardKind) []int {
 	return newLib
 }
 
-//相邻的牌 只针对条，万，筒
-func (c Card) getNeighbors() []Cards {
-	if c > 29 {
-		return nil
-	}
-	nb := make([]Cards, 0)
-	//默认相邻
-	nb = append(nb, []int{int(c + 1), int(c + 2)})
-	nb = append(nb, []int{int(c - 2), int(c - 1)})
-	nb = append(nb, []int{int(c - 1), int(c + 1)})
-
-	// 一万，一条，一筒
-	if c == T1 || c == W1 || c == L1 {
-		return nb[:1]
-	}
-	// 九万，九条，九筒
-	if c == T9 || c == W9 || c == L9 {
-		return nb[1:2]
-	}
-	// 其他
-	return nb
-}
-
 func (c Card) Kind() CardKind {
 	for k, v := range CardRangeMap {
 		if v[0] <= int(c) && int(c) <= v[1] {
@@ -116,39 +93,34 @@ func (c Card) Kind() CardKind {
 	return NilCard
 }
 
-//相同牌
-func sameCard(c Cards, mj int, match int) bool {
-	count := 0
-	for _, k := range c {
-		if k == mj {
-			count++
+func (c Cards) Remove(index ...int) Cards {
+	temp := make([]int, len(c))
+	copy(temp, c)
+	//占位
+	for _, idx := range index {
+		temp[idx] = -1
+	}
+
+	remain := make(Cards, 0)
+	for i := 0; i < len(temp); i++ {
+		t := temp[i]
+		if t == -1 {
+			continue
+		}
+		remain = append(remain, t)
+	}
+	return remain
+}
+
+func (c Cards) Index(mj int) int {
+	for i := 0; i < len(c); i++ {
+		if c[i] == mj {
+			return i
 		}
 	}
-	return count >= match
+	return -1
 }
 
-// HasPair 碰？
-func (c Cards) HasPair(mj int) bool {
-	return sameCard(c, mj, 2)
-}
-
-// HasGang 杠？
-func (c Cards) HasGang(mj int) bool {
-	return sameCard(c, mj, 3)
-}
-
-// HasList 吃？
-func (c Cards) HasList(mj int) bool {
-	if mj > 29 {
-		return false
-	}
-	// 万筒条 相邻牌
-	nbs := Card(mj).getNeighbors()
-	for _, nb := range nbs {
-		if sameCard(c, nb[0], 1) && sameCard(c, nb[1], 1) {
-			return true
-		}
-	}
-	// 同时存在
-	return false
+func (c Cards) Append(mj int) Cards {
+	return append(c, mj)
 }

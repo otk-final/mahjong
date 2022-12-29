@@ -1,164 +1,107 @@
 package mj
 
-import (
-	"sort"
-	"strings"
-)
+import "sort"
 
-var defaultABCMapperAsc = [][]int{
-	{1, 2, 3},
-	{2, 3, 4},
-	{3, 4, 5},
-	{4, 5, 6},
-	{5, 6, 7},
-	{6, 7, 8},
-	{7, 8, 9},
+type WinFilterFunc func(winComb *WinComb, temp Cards) Cards
+
+func FilterABCAsc(winComb *WinComb, temp Cards) Cards {
+	//正序过滤
+	sort.Ints(temp)
+	i := 0
+	for i < len(temp) {
+		t := temp[i]
+		//顺子
+		t1, t2 := temp.Index(t+1), temp.Index(t+2)
+		if t1 != -1 && t2 != -1 {
+			temp = temp.Remove(i, t1, t2)
+			//reset
+			winComb.ABC = append(winComb.ABC, Cards{t, t + 1, t + 2})
+			i = 0
+			continue
+		}
+		i++
+	}
+	return temp
 }
 
-var defaultABCMapperDesc = [][]int{
-	{9, 8, 7},
-	{8, 7, 6},
-	{7, 6, 5},
-	{6, 5, 4},
-	{5, 4, 3},
-	{4, 3, 2},
-	{3, 2, 1},
+func FilterABCDesc(winComb *WinComb, temp Cards) Cards {
+	//倒叙过滤
+	sort.Sort(sort.Reverse(sort.IntSlice(temp)))
+	i := 0
+	for i < len(temp) {
+		t := temp[i]
+		//顺子
+		t1, t2 := temp.Index(t-1), temp.Index(t-2)
+		if t1 != -1 && t2 != -1 {
+			temp = temp.Remove(i, t1, t2)
+			//reset
+			winComb.ABC = append(winComb.ABC, Cards{t - 2, t - 1, t})
+			i = 0
+			continue
+		}
+		i++
+	}
+	return temp
 }
 
-func sameCardGroup(sameCards []int) map[int][]int {
-	// 分组
-	var cardGroup = make(map[int][]int, 0)
-	for _, card := range sameCards {
-		cs, ok := cardGroup[card]
-		if !ok {
-			cs = make([]int, 0)
+func FilterDDD(winComb *WinComb, temp Cards) Cards {
+	//刻子
+	i := 0
+	sort.Ints(temp)
+	for i < len(temp) {
+		t := temp[i]
+		if len(temp) > i+2 && t == temp[i+1] && t == temp[i+2] {
+			temp = temp.Remove(i, i+1, i+2)
+			//reset
+			winComb.DDD = append(winComb.DDD, Cards{t, t, t})
+			i = 0
+			continue
 		}
-		cs = append(cs, card)
-		cardGroup[card] = cs
+		i++
 	}
-	return cardGroup
+	return temp
 }
 
-func NewABCMapper(kind CardKind, order string) [][]int {
-	rate := 0
-	if kind == WanCard { //万 1 - 9
-		rate = W1 - 1
-	}
-	if kind == TiaoCard { //条 11 - 19
-		rate = L1 - 1
-	}
-	if kind == TongCard { //筒 21 - 29
-		rate = T1 - 1
-	}
-
-	orderMapper := defaultABCMapperAsc
-	if strings.EqualFold(order, "DESC") {
-		orderMapper = defaultABCMapperDesc
-	}
-
-	newMapper := make([][]int, 0)
-	for _, mapper := range orderMapper {
-		newMapper = append(newMapper, []int{mapper[0] + rate, mapper[1] + rate, mapper[2] + rate})
-	}
-	return newMapper
+type WinChecker struct {
+	Filters [][]WinFilterFunc
+}
+type WinComb struct {
+	ABC []Cards
+	DDD []Cards
+	EE  Cards
 }
 
-func FindABC(abcMapper [][]int, sameCards []int) ([][]int, []int) {
-
-	// 分组
-	var cardGroup = sameCardGroup(sameCards)
-	var matrix = make([][]int, 0)
-	// 过滤
-	for _, mapper := range abcMapper {
-		a, b, c := mapper[0], mapper[1], mapper[2]
-		amap, aok := cardGroup[a]
-		if !aok {
-			amap = make([]int, 0)
-		}
-		bmap, bok := cardGroup[b]
-		if !bok {
-			bmap = make([]int, 0)
-		}
-		cmap, cok := cardGroup[c]
-		if !cok {
-			cmap = make([]int, 0)
-		}
-
-		//取最小集
-		sortLens := []int{len(amap), len(bmap), len(cmap)}
-		//取最小数
-		sort.Ints(sortLens)
-		minLen := sortLens[0]
-		//符合数据
-		for i := 0; i < minLen; i++ {
-			matrix = append(matrix, []int{a, b, c})
-		}
-		cardGroup[a] = amap[minLen:]
-		cardGroup[b] = bmap[minLen:]
-		cardGroup[c] = cmap[minLen:]
-	}
-
-	var other = make([]int, 0)
-	for _, v := range cardGroup {
-		other = append(other, v...)
-	}
-
-	return matrix, other
+func NewWinChecker() *WinChecker {
+	//判断方案 ABC*n + DDD *m + EE * 1
+	return &WinChecker{Filters: [][]WinFilterFunc{
+		{FilterABCAsc, FilterDDD},
+		{FilterABCDesc, FilterDDD},
+		{FilterDDD, FilterABCAsc},
+		{FilterDDD, FilterABCDesc},
+	}}
 }
 
-func FindDDD(sameCards []int) ([][]int, []int) {
-	var cardGroup = sameCardGroup(sameCards)
-	var matrix = make([][]int, 0)
-	var other = make([]int, 0)
-	for k, v := range cardGroup {
-		vLen := len(v)
-		if vLen == 3 {
-			//三张
-			matrix = append(matrix, []int{k, k, k})
-		} else if vLen == 4 {
-			//四张
-			matrix = append(matrix, []int{k, k, k})
-			other = append(other, []int{k}...)
-		} else {
-			other = append(other, v...)
-		}
-	}
-	return matrix, other
-}
+func (win *WinChecker) Check(data Cards) (bool, *WinComb) {
 
-func FindEE(sameCards []int) ([][]int, []int) {
-	var cardGroup = sameCardGroup(sameCards)
-	var matrix = make([][]int, 0)
-	var other = make([]int, 0)
-	for k, v := range cardGroup {
-		if len(v) == 2 {
-			matrix = append(matrix, []int{k, k})
-		} else {
-			other = append(other, v...)
-		}
-	}
-	return matrix, other
-}
+	for _, plans := range win.Filters {
+		tiles := make(Cards, len(data))
+		copy(tiles, data)
 
-func FilterCards(kind CardKind, cards []int) []int {
-	begin, end := 0, 0
-	switch kind {
-	case WanCard:
-		begin, end = W1, W9
-	case TiaoCard:
-		begin, end = L1, L9
-	case TongCard:
-		begin, end = T1, T9
-	case WindCard:
-		begin, end = EAST, NORTH
-	case OtherCard:
-		begin, end = Zh, Ba
-	}
-	filters := make([]int, 0)
-	for _, c := range cards {
-		if begin <= c && c <= end {
-			filters = append(filters, c)
+		//缓存结果
+		out := &WinComb{
+			ABC: make([]Cards, 0),
+			DDD: make([]Cards, 0),
+			EE:  make(Cards, 0),
+		}
+		for _, plan := range plans {
+			tiles = plan(out, tiles)
+		}
+
+		//将牌判断
+		if len(tiles) == 2 && tiles[0] == tiles[1] {
+			out.EE = tiles
+			return true, out
 		}
 	}
-	return filters
+	return false, nil
 }

@@ -51,19 +51,19 @@ const (
 
 var WindCard CardKind = "feng"
 
-//风 31 - 34
+//风 31 - 37
 const (
-	EAST = iota + 31
-	SOUTH
-	WEST
-	NORTH
+	EAST  = 31
+	SOUTH = 33
+	WEST  = 35
+	NORTH = 37
 )
 
 var OtherCard CardKind = "other"
 
-//中发白 35 - 37
+//中发白 41 - 45
 const (
-	Zh = iota + 35
-	Fa
-	Ba
+	Zh = 41
+	Fa = 43
+	Ba = 45
 )
