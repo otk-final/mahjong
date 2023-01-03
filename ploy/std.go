@@ -13,10 +13,11 @@ type BaseProvider struct {
 	dice int //骰子数
 }
 
-type BaseTileHandler struct {
+type BaseRoundCtxHandler struct {
 	table   *engine.Table
 	tiles   map[int]*PlayerTiles
 	profits map[int]*PlayerProfit
+	custom  map[string]any
 }
 
 // PlayerTiles 玩家牌库
@@ -32,26 +33,26 @@ type PlayerTiles struct {
 type PlayerProfit struct {
 }
 
-func (b *BaseTileHandler) GetOuts(pIdx int) mj.Cards {
+func (b *BaseRoundCtxHandler) GetOuts(pIdx int) mj.Cards {
 	return b.tiles[pIdx].outs
 }
 
-func (b *BaseTileHandler) GetHands(pIdx int) mj.Cards {
+func (b *BaseRoundCtxHandler) GetHands(pIdx int) mj.Cards {
 	return b.tiles[pIdx].hands
 }
 
-func (b *BaseTileHandler) GetRaces(pIdx int) []mj.Cards {
+func (b *BaseRoundCtxHandler) GetRaces(pIdx int) []mj.Cards {
 	return b.tiles[pIdx].races
 }
 
-func (b *BaseTileHandler) AddTake(pIdx int, tile int) {
+func (b *BaseRoundCtxHandler) AddTake(pIdx int, tile int) {
 	own := b.tiles[pIdx]
 
 	own.lastedTake = tile
 	own.hands = append(own.hands, tile)
 }
 
-func (b *BaseTileHandler) AddPut(pIdx int, tile int) {
+func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 
 	own := b.tiles[pIdx]
 	own.lastedPut = tile
@@ -62,7 +63,7 @@ func (b *BaseTileHandler) AddPut(pIdx int, tile int) {
 	own.outs = append(own.outs, tile)
 }
 
-func (b *BaseTileHandler) AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int) {
+func (b *BaseRoundCtxHandler) AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int) {
 	own := b.tiles[pIdx]
 	race := append(tiles, tile)
 	own.races = append(own.races, race)
@@ -72,20 +73,24 @@ func (b *BaseTileHandler) AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int
 	who.outs = who.outs[:len(who.outs)-1]
 }
 
-func (b *BaseTileHandler) Forward(pIdx int) int {
+func (b *BaseRoundCtxHandler) Forward(pIdx int) int {
 	return b.table.Forward()
 }
 
-func (b *BaseTileHandler) Backward(pIdx int) int {
+func (b *BaseRoundCtxHandler) Backward(pIdx int) int {
 	return b.table.Backward()
 }
 
-func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.TileHandle {
-	//创建上下文处理器
-	return startTileHandler(engine.NewDice(), gc.Nums, mj.Library)
+func (bp *BaseProvider) Renew(ctx *store.RoundCtx) {
+
 }
 
-func startTileHandler(dice int, players int, libs mj.Cards) *BaseTileHandler {
+func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxHandle {
+	//创建上下文处理器
+	return startRoundCtxHandler(engine.NewDice(), gc.Nums, mj.Library)
+}
+
+func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHandler {
 
 	//掷骰子，洗牌，发牌
 
@@ -97,10 +102,11 @@ func startTileHandler(dice int, players int, libs mj.Cards) *BaseTileHandler {
 	members := tb.Distribution(players)
 
 	//添加到上下文
-	opsCtx := &BaseTileHandler{
+	opsCtx := &BaseRoundCtxHandler{
 		table:   tb,
 		tiles:   make(map[int]*PlayerTiles, players),
 		profits: make(map[int]*PlayerProfit, players),
+		custom:  make(map[string]any, 0),
 	}
 
 	//保存牌库
@@ -134,7 +140,7 @@ func (bp *BaseProvider) Evaluate() map[api.RaceType]RaceEvaluate {
 	}
 }
 
-func NewBaseProvider() GameDefine {
+func newBaseProvider() GameDefine {
 	return &BaseProvider{}
 }
 
@@ -253,8 +259,8 @@ func (eval *winEvaluation) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) 
 		return temp[0] == temp[1], []mj.Cards{temp}
 	}
 
-	ok, comb := mj.NewWinChecker().Check(temp)
-	if ok {
+	comb := mj.NewWinChecker().Check(temp)
+	if comb != nil {
 		//有效组合
 		out := make([]mj.Cards, 0)
 		out = append(out, comb.ABC...)

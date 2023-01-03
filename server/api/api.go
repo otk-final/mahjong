@@ -1,8 +1,11 @@
 package api
 
+import "mahjong/mj"
+
 type GameConfigure struct {
-	Mode string `json:"mode"` //模型
-	Nums int    `json:"nums"` //玩家数
+	Mode   string         `json:"mode"`   //模型
+	Nums   int            `json:"nums"`   //玩家数
+	Custom map[string]any `json:"custom"` //自定义参数
 }
 
 const (
@@ -80,13 +83,7 @@ type RacePreview struct {
 }
 
 type RaceEffects struct {
-	Eats      [][]int       `json:"eats"`      //吃
-	Pair      []int         `json:"pair"`      //碰
-	OtherGang []int         `json:"otherGang"` //杠别人
-	OwnGang   []int         `json:"ownGang"`   //自杠
-	Win       []int         `json:"win"`       //胡
-	Cao       []int         `json:"cao"`       //朝
-	Tings     map[int][]int `json:"tings"`     //听
+	Effect map[RaceType][]mj.Cards
 }
 
 type RacePost struct {

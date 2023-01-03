@@ -36,22 +36,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	gc, pc := store.GetRoomConfig(body.RoomId)
 
 	//每种玩法，独立逻辑处理
-	var provider ploy.GameDefine
-	switch gc.Mode {
-	case "std": //标准
-		provider = ploy.NewBaseProvider()
-	case "laiz": //赖子
-		provider = ploy.NewLaiProvider()
-		break
-	case "k5x": //卡5星
-		break
-	case "7d": //七对
-		break
-	case "sc": //四川
-		break
-	case "gz": //广东
-		break
-	}
+	provider := ploy.NewProvider(gc.Mode)
 
 	//前置事件 初始化牌库
 	tileHandler := provider.Init(gc, pc)
@@ -82,7 +67,7 @@ func next(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoR
 type broadcastHandler struct {
 	provider    ploy.GameDefine
 	roundCtx    store.RoundCtx
-	tileHandler engine.TileHandle
+	tileHandler engine.RoundCtxHandle
 	dispatcher  *RoomDispatcher
 }
 

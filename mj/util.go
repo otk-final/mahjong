@@ -75,6 +75,8 @@ type WinComb struct {
 
 func NewWinChecker() *WinChecker {
 	//判断方案 ABC*n + DDD *m + EE * 1
+
+	//顺子，对子 正序，倒叙，结果会有所不同
 	return &WinChecker{Filters: [][]WinFilterFunc{
 		{FilterABCAsc, FilterDDD},
 		{FilterABCDesc, FilterDDD},
@@ -83,7 +85,7 @@ func NewWinChecker() *WinChecker {
 	}}
 }
 
-func (win *WinChecker) Check(data Cards) (bool, *WinComb) {
+func (win *WinChecker) Check(data Cards) *WinComb {
 
 	for _, plans := range win.Filters {
 		tiles := make(Cards, len(data))
@@ -104,10 +106,10 @@ func (win *WinChecker) Check(data Cards) (bool, *WinComb) {
 		if len(tiles) == 2 && tiles[0] == tiles[1] {
 			out.EE = tiles
 			out.OK = true
-			return true, out
+			return out
 		}
 	}
-	return false, nil
+	return nil
 }
 
 func (win *WinChecker) CheckAll(data Cards) []*WinComb {
@@ -123,6 +125,7 @@ func (win *WinChecker) CheckAll(data Cards) []*WinComb {
 			EE:    make(Cards, 0),
 			Parts: make(Cards, 0),
 		}
+
 		for _, plan := range plans {
 			tiles = plan(out, tiles)
 		}

@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// TileHandle 当局
-type TileHandle interface {
+// RoundCtxHandle 当局
+type RoundCtxHandle interface {
 
 	// GetOuts 已出牌
 	GetOuts(pIdx int) mj.Cards

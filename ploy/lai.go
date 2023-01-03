@@ -17,19 +17,28 @@ type LaiProvider struct {
 	BaseProvider
 }
 
-func NewLaiProvider() GameDefine {
+func newLaiProvider() GameDefine {
 	return &LaiProvider{
 		BaseProvider: BaseProvider{},
 	}
 }
 
-func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.TileHandle {
+func (lp *LaiProvider) Renew(ctx *store.RoundCtx) {
+	ctxHandler := ctx.Handler.(*BaseRoundCtxHandler)
+
+	//配置参数
+
+	lp.caoTile = ctxHandler.custom["cao"].(int)
+	lp.laiTile = ctxHandler.custom["lai"].(int)
+}
+
+func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxHandle {
 
 	//牌库 只有万，条，筒
 	laiLib := mj.LoadLibrary(mj.WanCard, mj.TiaoCard, mj.TongCard)
 
 	//init
-	handler := startTileHandler(engine.NewDice(), gc.Nums, laiLib)
+	handler := startRoundCtxHandler(engine.NewDice(), gc.Nums, laiLib)
 
 	//从前摸张牌，当前牌为朝天，下一张为癞牌
 	cao := handler.table.Forward()
@@ -47,6 +56,11 @@ func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) eng
 
 	lp.caoTile = cao
 	lp.laiTile = lai
+
+	//cache
+	handler.custom["cao"] = cao
+	handler.custom["lai"] = lai
+
 	return handler
 }
 
@@ -56,9 +70,11 @@ func (lp *LaiProvider) Evaluate() map[api.RaceType]RaceEvaluate {
 		api.ABCRace:  &abcLai{lai: lp.laiTile},
 		api.EEEERace: &eeeeLai{lai: lp.laiTile},
 		api.CaoRace:  &dddEvaluation{},
-		api.LaiRace:  &dddEvaluation{},
+		api.LaiRace:  &eeeeEvaluation{},
 		api.WinRace:  &winLai{lai: lp.laiTile, canChong: lp.canChong, unique: lp.laiUnique},
 	}
+
+	//不能吃
 	if !lp.canABC {
 		delete(evalMap, api.ABCRace)
 	}
@@ -183,7 +199,7 @@ func (eval *winLai) multiLaiCheck(temp mj.Cards) (bool, *mj.WinComb) {
 		//癞子作为普通牌判定后，多余的牌中可能会多出癞子
 		laiIdxes := comb.Parts.Indexes(eval.lai)
 		laiCount := len(laiIdxes)
-		//无多余，则表示剩余是多余的
+		//无多余癞子，则表示剩下的其他牌是多余的
 		if laiCount == 0 {
 			return false, nil
 		}
@@ -198,12 +214,13 @@ func (eval *winLai) multiLaiCheck(temp mj.Cards) (bool, *mj.WinComb) {
 		combs := combOps.product(laiCount)
 
 		for i := 0; i < len(combs); i++ {
+
 			//新牌组
 			nextPart := make(mj.Cards, len(noLaiPart))
 			copy(nextPart, noLaiPart)
 			nextPart = append(nextPart, combs[i]...)
 
-			if ok, nextComb := winChecker.Check(nextPart); ok {
+			if nextComb := winChecker.Check(nextPart); nextComb != nil {
 				//构建新的组合
 				newComb := &mj.WinComb{
 					OK:    true,

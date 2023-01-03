@@ -82,13 +82,16 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
 
-	//游戏策略
-	var provider ploy.GameDefine
-	eval, ok := provider.Evaluate()[body.RaceType]
-	if !ok {
+	//游戏策略 恢复状态
+	var provider = ploy.NewProvider("")
+	provider.Renew(roundCtx)
+
+	eval, exist := provider.Evaluate()[body.RaceType]
+	if !exist {
 		return nil, errors.New("不支持当前操作")
 	}
-	if eval.Eval(roundCtx, own.Idx, body.Who, body.Tile) {
+	//判定
+	if ok, _ := eval.Eval(roundCtx, own.Idx, body.Who, body.Tile); !ok {
 		return nil, errors.New("不支持牌型")
 	}
 
@@ -121,6 +124,11 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 
 //吃碰杠...预览
 func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*api.RaceEffects, error) {
+
+	//他人回合
+
+	//自己回合
+
 	return nil, nil
 }
 
