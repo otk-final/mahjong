@@ -10,9 +10,9 @@ import (
 // GameDefine 游戏规则
 type GameDefine interface {
 	// Init 初始化
-	Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxHandle
-	// Evaluate 策略集
-	Evaluate() map[api.RaceType]RaceEvaluate
+	Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtx
+	// HandleMapping 策略集
+	HandleMapping() map[api.RaceType]RaceEvaluate
 	// Renew 从上下文中恢复
 	Renew(ctx *store.RoundCtx)
 	// Finish 结束

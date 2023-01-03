@@ -11,7 +11,7 @@ type RoundCtx struct {
 	Round     int
 	Position  *engine.Position
 	Exchanger *engine.Exchanger
-	Handler   engine.RoundCtxHandle
+	Handler   engine.RoundCtx
 }
 
 func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
@@ -35,7 +35,7 @@ func LoadRoundCtx(roomId string, acctId string) (*RoundCtx, error) {
 	return ctx, nil
 }
 
-func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundCtxHandle) {
+func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundCtx) {
 
 	v, ok := roundCtxMap.Load(roomId)
 	ctx := v.(*RoundCtx)

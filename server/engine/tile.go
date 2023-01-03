@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// RoundCtxHandle 当局
-type RoundCtxHandle interface {
+// RoundCtx 当局
+type RoundCtx interface {
 
 	// GetOuts 已出牌
 	GetOuts(pIdx int) mj.Cards
@@ -98,7 +98,7 @@ func (tb *Table) Distribution(num int) map[int]mj.Cards {
 
 	startIdx := 0
 	//发牌 共13张 3 * 4 + 1
-	for i := 0; i < 4; i++ {
+	for i := 0; i < num; i++ {
 		count := 4
 		if i == 3 { //最后轮流一张
 			count = 1

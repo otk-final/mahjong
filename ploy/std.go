@@ -85,7 +85,7 @@ func (bp *BaseProvider) Renew(ctx *store.RoundCtx) {
 
 }
 
-func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxHandle {
+func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtx {
 	//创建上下文处理器
 	return startRoundCtxHandler(engine.NewDice(), gc.Nums, mj.Library)
 }
@@ -131,7 +131,7 @@ func (bp *BaseProvider) Quit() {
 
 }
 
-func (bp *BaseProvider) Evaluate() map[api.RaceType]RaceEvaluate {
+func (bp *BaseProvider) HandleMapping() map[api.RaceType]RaceEvaluate {
 	return map[api.RaceType]RaceEvaluate{
 		api.DDDRace:  &dddEvaluation{},
 		api.ABCRace:  &abcEvaluation{},

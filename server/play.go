@@ -86,7 +86,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	var provider = ploy.NewProvider("")
 	provider.Renew(roundCtx)
 
-	eval, exist := provider.Evaluate()[body.RaceType]
+	eval, exist := provider.HandleMapping()[body.RaceType]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
 	}

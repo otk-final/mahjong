@@ -32,7 +32,7 @@ func (lp *LaiProvider) Renew(ctx *store.RoundCtx) {
 	lp.laiTile = ctxHandler.custom["lai"].(int)
 }
 
-func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxHandle {
+func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtx {
 
 	//牌库 只有万，条，筒
 	laiLib := mj.LoadLibrary(mj.WanCard, mj.TiaoCard, mj.TongCard)
@@ -64,7 +64,7 @@ func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) eng
 	return handler
 }
 
-func (lp *LaiProvider) Evaluate() map[api.RaceType]RaceEvaluate {
+func (lp *LaiProvider) HandleMapping() map[api.RaceType]RaceEvaluate {
 	evalMap := map[api.RaceType]RaceEvaluate{
 		api.DDDRace:  &dddLai{lai: lp.laiTile},
 		api.ABCRace:  &abcLai{lai: lp.laiTile},
