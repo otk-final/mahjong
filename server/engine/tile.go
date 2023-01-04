@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// RoundCtx 当局
-type RoundCtx interface {
+// RoundCtxOption 当局
+type RoundCtxOption interface {
 
 	// GetOuts 已出牌
 	GetOuts(pIdx int) mj.Cards

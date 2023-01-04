@@ -67,7 +67,7 @@ func next(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoR
 type broadcastHandler struct {
 	provider    ploy.GameDefine
 	roundCtx    store.RoundCtx
-	tileHandler engine.RoundCtx
+	tileHandler engine.RoundCtxOption
 	dispatcher  *RoomDispatcher
 }
 

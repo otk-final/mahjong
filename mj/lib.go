@@ -94,8 +94,7 @@ func (c Card) Kind() CardKind {
 }
 
 func (c Cards) Remove(index ...int) Cards {
-	temp := make([]int, len(c))
-	copy(temp, c)
+	temp := c.Clone()
 	//占位
 	for _, idx := range index {
 		temp[idx] = -1
@@ -129,4 +128,27 @@ func (c Cards) Indexes(mj int) []int {
 		}
 	}
 	return is
+}
+
+func (c Cards) Replace(target []int, dest int) (int, []int) {
+
+	targetCards := Cards(target)
+	newCards := c.Clone()
+
+	exist := 0
+	//替换
+	for i := 0; i < len(newCards); i++ {
+		tile := newCards[i]
+		if targetCards.Index(tile) != -1 {
+			newCards[i] = dest
+			exist++
+		}
+	}
+	return exist, newCards
+}
+
+func (c Cards) Clone() Cards {
+	dest := make(Cards, len(c))
+	copy(dest, c)
+	return dest
 }

@@ -85,7 +85,7 @@ func (bp *BaseProvider) Renew(ctx *store.RoundCtx) {
 
 }
 
-func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtx {
+func (bp *BaseProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxOption {
 	//创建上下文处理器
 	return startRoundCtxHandler(engine.NewDice(), gc.Nums, mj.Library)
 }
@@ -154,19 +154,17 @@ func (eval *abcEvaluation) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) 
 		return false, nil
 	}
 
-	hands := ctx.Handler.GetHands(raceIdx)
-	temp := make(mj.Cards, len(hands))
-	copy(temp, hands)
+	hands := ctx.Handler.GetHands(raceIdx).Clone()
 
 	effects := make([]mj.Cards, 0)
 	u1, u2 := tile+1, tile+2
 
-	if temp.Index(u1) != -1 && temp.Index(u2) != -1 {
+	if hands.Index(u1) != -1 && hands.Index(u2) != -1 {
 		effects = append(effects, mj.Cards{tile, u1, u2})
 	}
 
 	l1, l2 := tile-2, tile-1
-	if temp.Index(l1) != -1 && temp.Index(l2) != -1 {
+	if hands.Index(l1) != -1 && hands.Index(l2) != -1 {
 		effects = append(effects, mj.Cards{l1, l2, tile})
 	}
 	if len(effects) > 0 {
@@ -180,7 +178,7 @@ type dddEvaluation struct {
 }
 
 func (eval *dddEvaluation) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.Handler.GetHands(raceIdx)
+	hands := ctx.Handler.GetHands(raceIdx).Clone()
 	//只剩一张
 	if len(hands) < 1 {
 		return false, nil
@@ -190,16 +188,13 @@ func (eval *dddEvaluation) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) 
 		return false, nil
 	}
 
-	temp := make(mj.Cards, len(hands))
-	copy(temp, hands)
-
-	sort.Ints(temp)
-	tIdx := temp.Index(tile)
+	sort.Ints(hands)
+	tIdx := hands.Index(tile)
 	if tIdx == -1 {
 		return false, nil
 	}
 	//共2张牌一样
-	ok := temp[tIdx+1] == tile
+	ok := hands[tIdx+1] == tile
 	if ok {
 		return true, []mj.Cards{{tile, tile}}
 	}
@@ -248,18 +243,15 @@ type winEvaluation struct {
 }
 
 func (eval *winEvaluation) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.Handler.GetHands(raceIdx)
-
-	temp := make(mj.Cards, len(hands))
-	copy(temp, hands)
-	temp = append(temp, tile)
+	hands := ctx.Handler.GetHands(raceIdx).Clone()
+	hands = append(hands, tile)
 
 	//只有两张,判断是否为将牌
-	if len(temp) == 2 {
-		return temp[0] == temp[1], []mj.Cards{temp}
+	if len(hands) == 2 {
+		return hands[0] == hands[1], []mj.Cards{hands}
 	}
 
-	comb := mj.NewWinChecker().Check(temp)
+	comb := mj.NewWinChecker().Check(hands)
 	if comb != nil {
 		//有效组合
 		out := make([]mj.Cards, 0)

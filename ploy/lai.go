@@ -32,7 +32,7 @@ func (lp *LaiProvider) Renew(ctx *store.RoundCtx) {
 	lp.laiTile = ctxHandler.custom["lai"].(int)
 }
 
-func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtx {
+func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxOption {
 
 	//牌库 只有万，条，筒
 	laiLib := mj.LoadLibrary(mj.WanCard, mj.TiaoCard, mj.TongCard)
@@ -154,13 +154,11 @@ func (eval *winLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, 
 		return false, nil
 	}
 
-	hands := ctx.Handler.GetHands(raceIdx)
-	temp := make(mj.Cards, 0)
-	copy(temp, hands)
-	temp = append(temp, tile)
+	hands := ctx.Handler.GetHands(raceIdx).Clone()
+	hands = append(hands, tile)
 
 	//判断手上的癞子
-	laiCount := len(temp.Indexes(eval.lai))
+	laiCount := len(hands.Indexes(eval.lai))
 
 	//一个癞子才能胡
 	if eval.unique && laiCount > 1 {
@@ -172,7 +170,7 @@ func (eval *winLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, 
 		return eval.winEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
 	}
 	//多癞子
-	ok, effect := eval.multiLaiCheck(temp)
+	ok, effect := eval.multiLaiCheck(hands)
 	if ok {
 		//有效组合
 		out := make([]mj.Cards, 0)
@@ -185,7 +183,7 @@ func (eval *winLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, 
 }
 
 func (eval *winLai) multiLaiCheck(temp mj.Cards) (bool, *mj.WinComb) {
-	combOps := &laiComb{tiles: LaiTiles}
+	combOps := &laiCombination{tiles: LaiTiles}
 	//多个癞子胡牌算法
 	winChecker := mj.NewWinChecker()
 	//把癞子当作普通牌先检验，通过剩余的牌中的癞子再进行判断
@@ -205,45 +203,90 @@ func (eval *winLai) multiLaiCheck(temp mj.Cards) (bool, *mj.WinComb) {
 		}
 		//仅多一个，则判断是否可以组成将
 		if laiCount == 1 && len(comb.Parts) == 2 {
+			//update
+			comb.EE = comb.Parts.Clone()
+			//set empty
+			comb.Parts = mj.Cards{}
+			comb.OK = true
 			return true, comb
 		}
 
 		//过滤癞子后的牌，再将癞子带入进行判断
 		noLaiPart := comb.Parts.Remove(laiIdxes...)
 		//组合
-		combs := combOps.product(laiCount)
+		laiCombs := combOps.product(laiCount)
 
-		for i := 0; i < len(combs); i++ {
-
+		for i := 0; i < len(laiCombs); i++ {
+			tempLaiComb := laiCombs[i]
 			//新牌组
-			nextPart := make(mj.Cards, len(noLaiPart))
-			copy(nextPart, noLaiPart)
-			nextPart = append(nextPart, combs[i]...)
+			nextPart := noLaiPart.Clone()
+			nextPart = append(nextPart, tempLaiComb...)
 
-			if nextComb := winChecker.Check(nextPart); nextComb != nil {
-				//构建新的组合
-				newComb := &mj.WinComb{
-					OK:    true,
-					ABC:   append(comb.ABC, nextComb.ABC...),
-					DDD:   append(comb.DDD, nextComb.DDD...),
-					EE:    append(comb.EE, nextComb.EE...),
-					Parts: make(mj.Cards, 0),
-				}
-				return true, newComb
+			//二次判定
+			winComb := winChecker.Check(nextPart)
+			if winComb == nil || !winComb.OK {
+				continue
 			}
+			//构建新的组合
+			newComb := &mj.WinComb{
+				OK:    true,
+				ABC:   append(comb.ABC, winComb.ABC...),
+				DDD:   append(comb.DDD, winComb.DDD...),
+				EE:    append(comb.EE, winComb.EE...),
+				Parts: make(mj.Cards, 0),
+			}
+			//还原癞子牌组
+			return true, recoverLaiComb(newComb, tempLaiComb, eval.lai)
 		}
 	}
 	return false, nil
 }
 
-type laiComb struct {
+func recoverLaiComb(targetComb *mj.WinComb, tempLaiComb []int, tile int) *mj.WinComb {
+
+	abc := targetComb.ABC
+	ddd := targetComb.DDD
+	ee := targetComb.EE
+
+	laiCount := len(tempLaiComb)
+	recoverCount := 0
+
+	for i := 0; i < len(abc) && recoverCount <= laiCount; i++ {
+		rc, newABC := abc[i].Replace(tempLaiComb, tile)
+		if rc > 0 {
+			abc[i] = newABC
+			recoverCount = recoverCount + rc
+		}
+	}
+
+	for i := 0; i < len(ddd) && recoverCount <= laiCount; i++ {
+		rc, newDDD := ddd[i].Replace(tempLaiComb, tile)
+		if rc > 0 {
+			ddd[i] = newDDD
+			recoverCount = recoverCount + rc
+		}
+	}
+
+	if recoverCount < laiCount {
+		rc, newEE := ee.Replace(tempLaiComb, tile)
+		if rc > 0 {
+			targetComb.EE = newEE
+			recoverCount = recoverCount + rc
+		}
+	}
+
+	return targetComb
+
+}
+
+type laiCombination struct {
 	tiles []int
 }
 
 //癞子 全排列
-func (comb *laiComb) product(num int) [][]int {
+func (comb *laiCombination) product(num int) [][]int {
 
-	sets := make([][]int, num)
+	sets := make([][]int, 0)
 	for i := 0; i < num; i++ {
 		sets = append(sets, comb.tiles)
 	}
@@ -260,7 +303,7 @@ func (comb *laiComb) product(num int) [][]int {
 	return product
 }
 
-func (comb *laiComb) nextIndex(ix []int, lens func(i int) int) {
+func (comb *laiCombination) nextIndex(ix []int, lens func(i int) int) {
 	for j := len(ix) - 1; j >= 0; j-- {
 		ix[j]++
 		if j == 0 || ix[j] < lens(j) {

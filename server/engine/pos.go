@@ -67,13 +67,8 @@ func (pos *Position) Join(p *api.Player) error {
 
 	//自动选座
 	if p.Idx == -1 {
-		joinCount := 0
-		pos.seatRing.Do(func(a any) {
-			if a != nil {
-				joinCount++
-			}
-		})
-		p.Idx = joinCount
+		joinCount := len(pos.members)
+		p.Idx = joinCount + 1
 	}
 
 	if p.Idx >= pos.seatRing.Len() {

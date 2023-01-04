@@ -88,8 +88,7 @@ func NewWinChecker() *WinChecker {
 func (win *WinChecker) Check(data Cards) *WinComb {
 
 	for _, plans := range win.Filters {
-		tiles := make(Cards, len(data))
-		copy(tiles, data)
+		tiles := data.Clone()
 
 		//缓存结果
 		out := &WinComb{
@@ -116,8 +115,7 @@ func (win *WinChecker) CheckAll(data Cards) []*WinComb {
 
 	all := make([]*WinComb, 0)
 	for _, plans := range win.Filters {
-		tiles := make(Cards, len(data))
-		copy(tiles, data)
+		tiles := data.Clone()
 		//缓存结果
 		out := &WinComb{
 			ABC:   make([]Cards, 0),

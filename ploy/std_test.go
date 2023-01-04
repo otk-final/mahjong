@@ -1,23 +1,22 @@
 package ploy
 
 import (
-	"container/ring"
-	"fmt"
 	"log"
+	"mahjong/mj"
 	"testing"
 )
 
-func TestRing(t *testing.T) {
+func TestWin(t *testing.T) {
 
-	rs := ring.New(10)
-	for i := 0; i < rs.Len(); i++ {
-		rs.Value = fmt.Sprintf("node-%d", i+1)
-		rs = rs.Next()
+	tiles := mj.Cards{
+		mj.W1, mj.W2, mj.W1, mj.W2, mj.W3, mj.W3, mj.W3, mj.W4, mj.W5, mj.T1, mj.T1,
 	}
-	rs.Unlink(2)
 
-	rs.Do(func(a any) {
-		log.Println(a)
-	})
+	winChecker := mj.NewWinChecker()
+	coms := winChecker.CheckAll(tiles)
+
+	for _, c := range coms {
+		log.Println(c)
+	}
 
 }
