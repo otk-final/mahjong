@@ -1,6 +1,8 @@
 package api
 
-import "mahjong/mj"
+import (
+	"mahjong/mj"
+)
 
 type GameConfigure struct {
 	Mode   string         `json:"mode"`   //模型
@@ -16,18 +18,18 @@ const (
 
 type PaymentMode int
 type PaymentConfigure struct {
-	Mode   PaymentMode `json:"mode"` //支付方式（AA模式，房主买单）
-	Amount int         `json:"pay"`  //费用
+	Mode   PaymentMode `json:"mode"`   //支付方式（AA模式，房主买单）
+	Amount int         `json:"amount"` //费用
 }
 
 // JoinRoom 加入房间
 type JoinRoom struct {
-	RoomId string `json:"room_id"`
+	RoomId string `json:"roomId"`
 }
 
 // CreateRoom 创建房间
 type CreateRoom struct {
-	Game    *GameConfigure    `json:"config"`
+	Game    *GameConfigure    `json:"game"`
 	Payment *PaymentConfigure `json:"payment"`
 }
 
@@ -48,7 +50,7 @@ type Player struct {
 // RoomInf 房间信息
 type RoomInf struct {
 	RoomId  string            `json:"roomId"`
-	Players map[int]*Player   `json:"players"`
+	Players []*Player         `json:"players"`
 	Game    *GameConfigure    `json:"game"`
 	Payment *PaymentConfigure `json:"payment"`
 }
@@ -89,4 +91,29 @@ type RaceEffects struct {
 type RacePost struct {
 	Action    string `json:"action"`    //摸牌，或出牌
 	Direction int    `json:"direction"` //摸牌方向（首，尾）
+}
+
+type GamePlayerQuery struct {
+	RoomId string `json:"roomId"`
+	Idx    int    `json:"idx"`
+}
+
+type GamePlayerInf struct {
+	RoomId  string         `json:"roomId"`
+	Idx     int            `json:"idx"`
+	Tiles   *PlayerTiles   `json:"tiles"`
+	Profits *PlayerProfits `json:"profits"`
+}
+
+// PlayerTiles 玩家牌库
+type PlayerTiles struct {
+	Hands      mj.Cards   `json:"hands"`
+	Races      []mj.Cards `json:"races"`
+	Outs       mj.Cards   `json:"outs"`
+	LastedTake int        `json:"lastedTake"`
+	LastedPut  int        `json:"lastedPut"`
+}
+
+//PlayerProfits 玩家收益
+type PlayerProfits struct {
 }

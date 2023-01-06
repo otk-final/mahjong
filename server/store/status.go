@@ -26,8 +26,9 @@ func LoadRoundCtx(roomId string, acctId string) (*engine.RoundCtx, error) {
 func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundOpsCtx) *engine.RoundCtx {
 
 	v, ok := roundCtxMap.Load(roomId)
-	ctx := v.(*engine.RoundCtx)
+	var ctx *engine.RoundCtx
 	if ok {
+		ctx = v.(*engine.RoundCtx)
 		ctx.Round++
 	} else {
 		ctx = &engine.RoundCtx{Round: 1}

@@ -1,8 +1,9 @@
 package api
 
 type IdentityHeader struct {
-	UserId string
-	Token  string
+	UserId   string
+	UserName string
+	Token    string
 }
 
 type NoResp struct {

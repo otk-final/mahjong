@@ -1,9 +1,6 @@
 package server
 
 import (
-	"fmt"
-	"github.com/google/uuid"
-	"hash/crc32"
 	"mahjong/server/api"
 	"mahjong/server/engine"
 	"mahjong/server/store"
@@ -19,6 +16,7 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 	master := &api.Player{
 		Idx:    0,
 		AcctId: header.UserId,
+		Name:   header.UserName,
 		Alias:  "庄家",
 	}
 
@@ -36,13 +34,19 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 	store.CreatePosition(roomId, pos)
 
 	//房间信息
-	return roomInfQuery(roomId)
+	return &api.RoomInf{
+		RoomId:  roomId,
+		Players: []*api.Player{master},
+		Game:    body.Game,
+		Payment: body.Payment,
+	}, nil
 }
 
 // 生成房间号
 func roomIdGen() string {
-	id := crc32.ChecksumIEEE([]byte(uuid.New().String()))
-	return fmt.Sprintf("%d", id)
+	//id := crc32.ChecksumIEEE([]byte(uuid.New().String()))
+	//return fmt.Sprintf("%d", id)
+	return "100"
 }
 
 // 加入房间
@@ -61,9 +65,12 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	member := &api.Player{
 		Idx:    -1,
 		AcctId: header.UserId,
-		Name:   "",
+		Name:   header.UserName,
 		Alias:  "闲家",
 	}
+
+	//通知有新玩家加入
+	exitJoined := pos.Joined()
 
 	//入座
 	err = pos.Join(member)
@@ -72,26 +79,24 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	}
 
 	//update
-	err = store.UpdatePosition(body.RoomId, pos)
-	if err != nil {
-		return nil, err
-	}
+	store.UpdatePosition(body.RoomId, pos)
 
 	//通知有新玩家加入
-	joins := pos.Joined()
-	rx := &RoomDispatcher{RoomId: body.RoomId, members: joins}
-	Broadcast(rx, api.Packet(99, &api.JoinPayload{Member: member, Round: 0}))
+	rx := &RoomDispatcher{RoomId: body.RoomId, members: exitJoined}
+	Broadcast(rx, api.Packet(api.JoinEvent, &api.JoinPayload{Members: exitJoined, Round: 0}))
 
 	//房间信息
-	return roomInfQuery(body.RoomId)
+	gc, pc := store.GetRoomConfig(body.RoomId)
+	return &api.RoomInf{
+		RoomId:  body.RoomId,
+		Players: exitJoined,
+		Game:    gc,
+		Payment: pc,
+	}, nil
 }
 
 // 退出房间
 func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.NoResp, error) {
 
 	return api.Empty, nil
-}
-
-func roomInfQuery(roomId string) (*api.RoomInf, error) {
-	return nil, nil
 }

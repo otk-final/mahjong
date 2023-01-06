@@ -48,66 +48,59 @@ type BaseRoundCtxHandler struct {
 	gc      *api.GameConfigure
 	pc      *api.PaymentConfigure
 	table   *engine.Table
-	tiles   map[int]*PlayerTiles
-	profits map[int]*PlayerProfit
+	tiles   map[int]*api.PlayerTiles
+	profits map[int]*api.PlayerProfits
 	custom  map[string]any
-}
-
-// PlayerTiles 玩家牌库
-type PlayerTiles struct {
-	hands      mj.Cards
-	races      []mj.Cards
-	outs       mj.Cards
-	lastedTake int
-	lastedPut  int
-}
-
-//PlayerProfit 玩家收益
-type PlayerProfit struct {
 }
 
 func (b *BaseRoundCtxHandler) WithConfig() (*api.GameConfigure, *api.PaymentConfigure) {
 	return b.gc, b.pc
 }
 
-func (b *BaseRoundCtxHandler) GetOuts(pIdx int) mj.Cards {
-	return b.tiles[pIdx].outs
+func (b *BaseRoundCtxHandler) LoadTiles(pIdx int) *api.PlayerTiles {
+	return b.tiles[pIdx]
 }
 
-func (b *BaseRoundCtxHandler) GetHands(pIdx int) mj.Cards {
-	return b.tiles[pIdx].hands
+func (b *BaseRoundCtxHandler) LoadProfits(pIdx int) *api.PlayerProfits {
+	return b.profits[pIdx]
 }
 
-func (b *BaseRoundCtxHandler) GetRaces(pIdx int) []mj.Cards {
-	return b.tiles[pIdx].races
+func (b *BaseRoundCtxHandler) withHands(pIdx int) mj.Cards {
+	return b.tiles[pIdx].Hands
+}
+func (b *BaseRoundCtxHandler) withRaces(pIdx int) []mj.Cards {
+	return b.tiles[pIdx].Races
+}
+func (b *BaseRoundCtxHandler) withOuts(pIdx int) mj.Cards {
+	return b.tiles[pIdx].Outs
 }
 
 func (b *BaseRoundCtxHandler) AddTake(pIdx int, tile int) {
 	own := b.tiles[pIdx]
 
-	own.lastedTake = tile
-	own.hands = append(own.hands, tile)
+	own.LastedTake = tile
+	own.Hands = append(own.Hands, tile)
 }
 
 func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 
 	own := b.tiles[pIdx]
-	own.lastedPut = tile
+	own.LastedPut = tile
 
 	//update hands
-	tIdx := own.hands.Index(tile)
-	own.hands = own.hands.Remove(tIdx)
-	own.outs = append(own.outs, tile)
+	tIdx := own.Hands.Index(tile)
+	own.Hands = own.Hands.Remove(tIdx)
+	own.Outs = append(own.Outs, tile)
 }
 
 func (b *BaseRoundCtxHandler) AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int) {
 	own := b.tiles[pIdx]
 	race := append(tiles, tile)
-	own.races = append(own.races, race)
+	own.Races = append(own.Races, race)
 
 	//移交
 	who := b.tiles[whoIdx]
-	who.outs = who.outs[:len(who.outs)-1]
+	who.Outs = who.Outs[:len(who.Outs)-1]
 }
 
 func (b *BaseRoundCtxHandler) Forward(pIdx int) int {

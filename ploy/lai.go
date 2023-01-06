@@ -155,7 +155,7 @@ func (eval *winLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool,
 		return false, nil
 	}
 
-	hands := ctx.Handler.GetHands(raceIdx).Clone()
+	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
 	hands = append(hands, tile)
 
 	//判断手上的癞子

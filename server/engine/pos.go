@@ -67,8 +67,12 @@ func (pos *Position) Join(p *api.Player) error {
 
 	//自动选座
 	if p.Idx == -1 {
+		//下标从0开始
 		joinCount := len(pos.members)
-		p.Idx = joinCount + 1
+		if joinCount == 0 {
+			p.Idx = 0
+		}
+		p.Idx = joinCount
 	}
 
 	if p.Idx >= pos.seatRing.Len() {
@@ -83,10 +87,6 @@ func (pos *Position) Join(p *api.Player) error {
 
 	pos.members[p.AcctId] = p
 	return nil
-}
-
-func (pos *Position) Ready() bool {
-	return false
 }
 
 func (pos *Position) Joined() []*api.Player {

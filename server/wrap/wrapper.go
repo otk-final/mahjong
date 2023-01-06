@@ -53,10 +53,12 @@ func (receiver AnyHandler[T, R]) Func() http.HandlerFunc {
 
 		//header
 		apiHeader := &api.IdentityHeader{
-			UserId: request.Header.Get("user_id"),
-			Token:  request.Header.Get("token"),
+			UserId:   request.Header.Get("userId"),
+			UserName: request.Header.Get("userName"),
+			Token:    request.Header.Get("token"),
 		}
-		request.WithContext(context.WithValue(request.Context(), "header", apiHeader))
+
+		request = request.WithContext(context.WithValue(request.Context(), "header", apiHeader))
 
 		//执行
 		r, err := receiver.fn(writer, request, t)

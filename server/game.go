@@ -24,12 +24,12 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	}
 
 	//校验用户信息，是否为庄家
-	if pos.IsMaster(header.UserId) {
+	if !pos.IsMaster(header.UserId) {
 		return nil, errors.New("待庄家开启游戏")
 	}
 
 	//判定是否满座
-	if !pos.Ready() {
+	if pos.Len() != pos.Cap() {
 		return nil, errors.New("待玩家就坐")
 	}
 	//游戏设置
@@ -55,15 +55,38 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	store.RegisterRoundCtx(body.RoomId, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
-	Broadcast(dispatcher, api.Packet(1, nil))
+	Broadcast(dispatcher, api.Packet(api.BeginEvent, nil))
 
 	return api.Empty, nil
 }
 
-//下一局
-func next(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoResp, error) {
+//查询玩家牌库
+func load(w http.ResponseWriter, r *http.Request, body *api.GamePlayerQuery) (*api.GamePlayerInf, error) {
+	//用户信息
+	header := wrap.GetHeader(r)
 
-	return nil, nil
+	//查询上下文
+	ctx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
+	if err != nil {
+		return nil, err
+	}
+
+	//查询基础牌信息
+	tiles := ctx.Handler.LoadTiles(body.Idx)
+	profits := ctx.Handler.LoadProfits(body.Idx)
+
+	//查询玩家信息
+	//member, _ := ctx.Position.Index(header.UserId)
+	//isOwn := strings.EqualFold(member.AcctId, header.UserId)
+
+	//TODO 非自己的牌，查询是否选择明牌
+
+	return &api.GamePlayerInf{
+		RoomId:  body.RoomId,
+		Idx:     body.Idx,
+		Tiles:   tiles,
+		Profits: profits,
+	}, nil
 }
 
 type broadcastHandler struct {
@@ -74,37 +97,28 @@ type broadcastHandler struct {
 }
 
 func (handler *broadcastHandler) Take(event *api.TakePayload) {
-	Broadcast(handler.dispatcher, api.Packet(100, event))
+	Broadcast(handler.dispatcher, api.Packet(api.TakeEvent, event))
 }
 
 func (handler *broadcastHandler) Put(ackId int, event *api.PutPayload) {
-
-	//广播出牌事件
-	Broadcast(handler.dispatcher, api.Packet(101, event))
-
-	//广播待确认事件
-	Broadcast(handler.dispatcher, api.Packet(102, &api.AckPayload{
-		Who:   event.Who,
-		Round: event.Round,
-		AckId: ackId,
-	}))
+	Broadcast(handler.dispatcher, api.Packet(api.PutEvent, event))
 }
 
 func (handler *broadcastHandler) Race(event *api.RacePayload) {
-	Broadcast(handler.dispatcher, api.Packet(103, event))
+	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, event))
 }
 
 func (handler *broadcastHandler) Win(event *api.RacePayload) bool {
-	Broadcast(handler.dispatcher, api.Packet(104, event))
+	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, event))
 	return handler.provider.Finish()
 }
 
 func (handler *broadcastHandler) Ack(event *api.AckPayload) {
-	Broadcast(handler.dispatcher, api.Packet(105, event))
+	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, event))
 }
 
-func (handler *broadcastHandler) Next(who int, ok bool) {
-	Broadcast(handler.dispatcher, api.Packet(106, &api.NextPayload{Who: who}))
+func (handler *broadcastHandler) Turn(who int, ok bool) {
+	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, &api.NextPayload{Who: who}))
 }
 
 func (handler *broadcastHandler) Quit() {

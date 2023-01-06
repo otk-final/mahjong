@@ -26,8 +26,8 @@ type NotifyHandle interface {
 	Win(event *api.RacePayload) bool
 	// Ack 回执确认
 	Ack(event *api.AckPayload)
-	// Next 轮转
-	Next(who int, ok bool)
+	// Turn 轮转
+	Turn(who int, ok bool)
 	//Quit 退出
 	Quit()
 }
@@ -82,7 +82,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 
 	//从庄家开始
 	masterIdx := pos.start()
-	go handler.Next(masterIdx, true)
+	go handler.Turn(masterIdx, true)
 
 	//default 就绪队列 除自己
 	aq := &ackQueue{members: pos.seatRing.Len() - 1}
@@ -133,7 +133,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			if aq.ready(a.Who, a.AckId) {
 				//正常轮转下家
 				who := pos.next()
-				handler.Next(who, true)
+				handler.Turn(who, true)
 			}
 		case <-countdown.C:
 			//并清除待ack队列
@@ -141,7 +141,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			//超时，玩家无任何动作
 			who := pos.next()
 			//非正常轮转下家
-			handler.Next(who, false)
+			handler.Turn(who, false)
 		}
 	}
 }

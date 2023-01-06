@@ -23,12 +23,10 @@ func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
 type RoundOpsCtx interface {
 	// WithConfig 当前配置
 	WithConfig() (*api.GameConfigure, *api.PaymentConfigure)
-	// GetOuts 已出牌
-	GetOuts(pIdx int) mj.Cards
-	// GetHands 手上牌
-	GetHands(pIdx int) mj.Cards
-	// GetRaces 生效牌
-	GetRaces(pIdx int) []mj.Cards
+
+	LoadTiles(pIdx int) *api.PlayerTiles
+
+	LoadProfits(pIdx int) *api.PlayerProfits
 
 	AddTake(pIdx int, tile int)
 

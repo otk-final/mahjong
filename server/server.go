@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"mahjong/server/api"
@@ -22,7 +23,7 @@ func Apis() *mux.Router {
 	//游戏
 	game := muxRouter.Methods("POST").PathPrefix("/game").Subrouter()
 	game.Path("/start").HandlerFunc(wrap.NewWrapper(start).Func())
-	game.Path("/next").HandlerFunc(wrap.NewWrapper(next).Func())
+	game.Path("/load").HandlerFunc(wrap.NewWrapper(load).Func())
 
 	//玩家事件
 	play := muxRouter.Methods("POST").PathPrefix("/play").Subrouter()
@@ -43,13 +44,13 @@ type RoomDispatcher struct {
 	members []*api.Player
 }
 
-func (rx *RoomDispatcher) GetPlayer(acctId string) *netChan {
+func (rx *RoomDispatcher) GetPlayer(acctId string) (*netChan, error) {
 	chKey := fmt.Sprintf("%s#%s", rx.RoomId, acctId)
 	temp, ok := netChanMap.Load(chKey)
 	if !ok {
-		return nil
+		return nil, errors.New("not connected")
 	}
-	return temp.(*netChan)
+	return temp.(*netChan), nil
 }
 
 func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
@@ -57,7 +58,10 @@ func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
 	msg, _ := json.Marshal(packet)
 	//所有成员
 	for _, member := range dispatcher.members {
-		memberChan := dispatcher.GetPlayer(member.AcctId)
+		memberChan, err := dispatcher.GetPlayer(member.AcctId)
+		if err != nil {
+			continue
+		}
 		memberChan.write <- msg
 	}
 }

@@ -6,6 +6,19 @@ import (
 
 type WebEvent int
 
+const (
+	JoinEvent WebEvent = iota + 100
+	ExitEvent
+	BeginEvent
+	NextEvent
+	TakeEvent
+	PutEvent
+	RaceEvent
+	WinEvent
+	AckEvent
+	TurnEvent
+)
+
 type WebPacket[T any] struct {
 	Event   WebEvent `json:"event"`
 	EventId string   `json:"event_id"`
@@ -41,8 +54,8 @@ type NextPayload struct {
 }
 
 type JoinPayload struct {
-	Member *Player `json:"member"`
-	Round  int     `json:"round"`
+	Members []*Player `json:"members"`
+	Round   int       `json:"round"`
 }
 
 func Packet[T any](code WebEvent, event T) *WebPacket[T] {

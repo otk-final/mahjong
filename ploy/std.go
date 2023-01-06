@@ -38,19 +38,19 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 	//添加到上下文
 	ctxOps := &BaseRoundCtxHandler{
 		table:   tb,
-		tiles:   make(map[int]*PlayerTiles, players),
-		profits: make(map[int]*PlayerProfit, players),
+		tiles:   make(map[int]*api.PlayerTiles, players),
+		profits: make(map[int]*api.PlayerProfits, players),
 		custom:  make(map[string]any, 0),
 	}
 
 	//保存牌库
 	for k, v := range members {
-		ctxOps.tiles[k] = &PlayerTiles{
-			hands:      v,
-			races:      make([]mj.Cards, 0),
-			outs:       make(mj.Cards, 0),
-			lastedTake: 0,
-			lastedPut:  0,
+		ctxOps.tiles[k] = &api.PlayerTiles{
+			Hands:      v,
+			Races:      make([]mj.Cards, 0),
+			Outs:       make(mj.Cards, 0),
+			LastedTake: 0,
+			LastedPut:  0,
 		}
 	}
 
@@ -88,7 +88,7 @@ func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int)
 		return false, nil
 	}
 
-	hands := ctx.Handler.GetHands(raceIdx).Clone()
+	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
 
 	effects := make([]mj.Cards, 0)
 	u1, u2 := tile+1, tile+2
@@ -112,7 +112,7 @@ type dddEvaluation struct {
 }
 
 func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.Handler.GetHands(raceIdx).Clone()
+	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
 	//只剩一张
 	if len(hands) < 1 {
 		return false, nil
@@ -142,9 +142,10 @@ type eeeeEvaluation struct {
 func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 
 	//自杠 从已判断中的牌检索
+	tileCtx := ctx.Handler.LoadTiles(raceIdx)
 	if raceIdx == whoIdx {
 		//检索 碰过的
-		races := ctx.Handler.GetRaces(raceIdx)
+		races := tileCtx.Races
 		for i := 0; i < len(races); i++ {
 			race := races[i]
 			if len(race) == 3 && (race[0] == tile && race[1] == tile && race[2] == tile) {
@@ -154,7 +155,7 @@ func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int
 		return false, nil
 	}
 	//杠别人 从手牌中检索
-	temp := ctx.Handler.GetHands(raceIdx)
+	temp := tileCtx.Hands
 	if len(temp) < 3 {
 		return false, nil
 	}
@@ -177,7 +178,7 @@ type winEvaluation struct {
 }
 
 func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.Handler.GetHands(raceIdx).Clone()
+	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
 	hands = append(hands, tile)
 
 	//只有两张,判断是否为将牌

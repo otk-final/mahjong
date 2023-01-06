@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"log"
 	"mahjong/server/api"
 	"net/http"
 	"sync"
@@ -32,21 +33,22 @@ func wsRoute() http.HandlerFunc {
 		if err != nil {
 			return
 		}
-		//远程设备信息
-		conn.LocalAddr()
-		conn.RemoteAddr()
 
 		//缓存
 		wsc := &netChan{
 			roomId: roomId,
 			identity: &api.IdentityHeader{
-				UserId: request.Header.Get("userId"),
-				Token:  request.Header.Get("token"),
+				UserId:   request.Header.Get("userId"),
+				UserName: request.Header.Get("userName"),
+				Token:    request.Header.Get("token"),
 			},
 			read:  make(chan []byte, 100),
 			write: make(chan []byte, 100),
 		}
 		_, _ = netChanMap.LoadOrStore(wsc.Key(), wsc)
+
+		//远程设备信息
+		log.Printf("玩家：%s 连接[%s]成功 Ip:%s\n", wsc.identity.UserName, roomId, conn.RemoteAddr().String())
 
 		//读
 		go func(conn *websocket.Conn, wsc *netChan) {
