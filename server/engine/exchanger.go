@@ -85,7 +85,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 	go handler.Turn(masterIdx, true)
 
 	//default 就绪队列 除自己
-	aq := &ackQueue{members: pos.seatRing.Len() - 1}
+	aq := &ackQueue{members: pos.Num() - 1}
 
 	//堵塞监听
 	for {

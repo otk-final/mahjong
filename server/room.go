@@ -28,7 +28,6 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 
 	//设置庄家，虚位待坐 join
 	pos, _ := engine.NewPosition(body.Game.Nums, master)
-	_ = pos.Join(master)
 
 	//save 座位信息
 	store.CreatePosition(roomId, pos)
@@ -36,6 +35,7 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 	//房间信息
 	return &api.RoomInf{
 		RoomId:  roomId,
+		Own:     master,
 		Players: []*api.Player{master},
 		Game:    body.Game,
 		Payment: body.Payment,
@@ -89,6 +89,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	gc, pc := store.GetRoomConfig(body.RoomId)
 	return &api.RoomInf{
 		RoomId:  body.RoomId,
+		Own:     member,
 		Players: exitJoined,
 		Game:    gc,
 		Payment: pc,

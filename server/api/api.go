@@ -50,6 +50,7 @@ type Player struct {
 // RoomInf 房间信息
 type RoomInf struct {
 	RoomId  string            `json:"roomId"`
+	Own     *Player           `json:"own"`
 	Players []*Player         `json:"players"`
 	Game    *GameConfigure    `json:"game"`
 	Payment *PaymentConfigure `json:"payment"`

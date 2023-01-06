@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"container/ring"
 	"errors"
 	"mahjong/server/api"
 	"strings"
@@ -9,22 +8,27 @@ import (
 )
 
 type Position struct {
-	lock     *sync.Mutex
-	seatRing *ring.Ring  //座位
-	master   *api.Player //庄家
-	members  map[string]*api.Player
+	lock    *sync.Mutex
+	turnIdx int
+	num     int
+	master  *api.Player //庄家
+	members []*api.Player
 }
 
-func NewPosition(members int, master *api.Player) (*Position, error) {
+func NewPosition(num int, master *api.Player) (*Position, error) {
+
 	//虚位以待 join
-	if master.Idx >= members {
+	if master.Idx >= num {
 		return nil, errors.New("master idx error")
 	}
+	members := []*api.Player{master}
+
 	return &Position{
-		lock:     &sync.Mutex{},
-		seatRing: ring.New(members),
-		master:   master,
-		members:  make(map[string]*api.Player, members),
+		lock:    &sync.Mutex{},
+		turnIdx: 0,
+		num:     num,
+		master:  master,
+		members: members,
 	}, nil
 }
 
@@ -34,9 +38,13 @@ func (pos *Position) next() int {
 	defer pos.lock.Unlock()
 	pos.lock.Lock()
 
-	//next
-	pos.seatRing = pos.seatRing.Next()
-	return pos.seatRing.Value.(*api.Player).Idx
+	if pos.turnIdx == len(pos.members)-1 {
+		pos.turnIdx = 0
+	} else {
+		//next
+		pos.turnIdx++
+	}
+	return pos.turnIdx
 }
 
 func (pos *Position) move(who int) {
@@ -44,17 +52,15 @@ func (pos *Position) move(who int) {
 	defer pos.lock.Unlock()
 	pos.lock.Lock()
 
-	nowIdx := pos.seatRing.Value.(*api.Player).Idx
-	pos.seatRing = pos.seatRing.Move(who - nowIdx)
+	pos.turnIdx = who
 }
 
 func (pos *Position) Check(who int) bool {
-	return pos.seatRing.Value.(*api.Player).Idx == who
+	return pos.turnIdx == who
 }
 
 //从庄家开始
 func (pos *Position) start() int {
-	pos.seatRing = pos.seatRing.Move(pos.master.Idx)
 	return pos.master.Idx
 }
 
@@ -65,38 +71,33 @@ func (pos *Position) Join(p *api.Player) error {
 	defer pos.lock.Unlock()
 	pos.lock.Lock()
 
-	//自动选座
+	joinCount := len(pos.members)
+	//是否满座
+	if joinCount == pos.num {
+		return errors.New("full members")
+	}
+
+	//自动选座 下标从0开始
 	if p.Idx == -1 {
-		//下标从0开始
-		joinCount := len(pos.members)
-		if joinCount == 0 {
-			p.Idx = 0
-		}
 		p.Idx = joinCount
 	}
 
-	if p.Idx >= pos.seatRing.Len() {
-		return errors.New("index outset")
+	if p.Idx > pos.num-1 {
+		return errors.New("idx offset")
 	}
 
-	exist := pos.seatRing.Move(p.Idx)
-	if exist.Value != nil {
-		return errors.New("exist player")
-	}
-	exist.Value = p
-
-	pos.members[p.AcctId] = p
+	pos.members = append(pos.members, p)
 	return nil
 }
 
 func (pos *Position) Joined() []*api.Player {
-	joins := make([]*api.Player, 0)
-	pos.seatRing.Do(func(a any) {
-		if a != nil {
-			joins = append(joins, a.(*api.Player))
-		}
-	})
-	return joins
+	//同步
+	defer pos.lock.Unlock()
+	pos.lock.Lock()
+
+	joined := make([]*api.Player, len(pos.members))
+	copy(joined, pos.members)
+	return joined
 }
 
 func (pos *Position) IsMaster(acctId string) bool {
@@ -104,17 +105,18 @@ func (pos *Position) IsMaster(acctId string) bool {
 }
 
 func (pos *Position) Index(acctId string) (*api.Player, error) {
-	m, ok := pos.members[acctId]
-	if !ok {
-		return nil, errors.New("not found")
+	for _, m := range pos.members {
+		if strings.EqualFold(m.AcctId, acctId) {
+			return m, nil
+		}
 	}
-	return m, nil
+	return nil, errors.New("not found")
 }
 
 func (pos *Position) Len() int {
 	return len(pos.Joined())
 }
 
-func (pos *Position) Cap() int {
-	return pos.seatRing.Len()
+func (pos *Position) Num() int {
+	return pos.num
 }

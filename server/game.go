@@ -29,7 +29,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	}
 
 	//判定是否满座
-	if pos.Len() != pos.Cap() {
+	if pos.Len() != pos.Num() {
 		return nil, errors.New("待玩家就坐")
 	}
 	//游戏设置
@@ -55,7 +55,14 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	store.RegisterRoundCtx(body.RoomId, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
-	Broadcast(dispatcher, api.Packet(api.BeginEvent, nil))
+	BroadcastFunc(dispatcher, func(player *api.Player) *api.WebPacket[api.BeginPayload] {
+		payload := api.BeginPayload{
+			Who:   player.Idx,
+			Turn:  player.Idx == 0,
+			Hands: roundCtxOps.LoadTiles(player.Idx).Hands,
+		}
+		return api.Packet(api.BeginEvent, payload)
+	})
 
 	return api.Empty, nil
 }
@@ -118,7 +125,7 @@ func (handler *broadcastHandler) Ack(event *api.AckPayload) {
 }
 
 func (handler *broadcastHandler) Turn(who int, ok bool) {
-	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, &api.NextPayload{Who: who}))
+	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, &api.TurnPayload{Who: who}))
 }
 
 func (handler *broadcastHandler) Quit() {

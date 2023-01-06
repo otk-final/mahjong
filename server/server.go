@@ -65,3 +65,17 @@ func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
 		memberChan.write <- msg
 	}
 }
+
+func BroadcastFunc[T any](dispatcher *RoomDispatcher, fn func(*api.Player) *api.WebPacket[T]) {
+	//所有成员
+	for _, member := range dispatcher.members {
+		packet := fn(member)
+		memberChan, err := dispatcher.GetPlayer(member.AcctId)
+		if err != nil {
+			continue
+		}
+		//序列化 json
+		msg, _ := json.Marshal(packet)
+		memberChan.write <- msg
+	}
+}

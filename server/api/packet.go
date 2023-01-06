@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/google/uuid"
+	"mahjong/mj"
 )
 
 type WebEvent int
@@ -49,13 +50,19 @@ type AckPayload struct {
 	AckId int `json:"ackId"`
 }
 
-type NextPayload struct {
+type TurnPayload struct {
 	Who int `json:"who"`
 }
 
 type JoinPayload struct {
 	Members []*Player `json:"members"`
 	Round   int       `json:"round"`
+}
+
+type BeginPayload struct {
+	Who   int      `json:"who"`
+	Turn  bool     `json:"turn"`
+	Hands mj.Cards `json:"hands"`
 }
 
 func Packet[T any](code WebEvent, event T) *WebPacket[T] {
