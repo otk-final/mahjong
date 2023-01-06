@@ -2,14 +2,27 @@ package engine
 
 import (
 	"mahjong/mj"
+	"mahjong/server/api"
 	"math/rand"
 	"sync"
 	"time"
 )
 
-// RoundCtxOption 当局
-type RoundCtxOption interface {
+type RoundCtx struct {
+	Round     int
+	Position  *Position
+	Exchanger *Exchanger
+	Handler   RoundOpsCtx
+}
 
+func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
+	return ctx.Position.Index(acctId)
+}
+
+// RoundOpsCtx 当局
+type RoundOpsCtx interface {
+	// WithConfig 当前配置
+	WithConfig() (*api.GameConfigure, *api.PaymentConfigure)
 	// GetOuts 已出牌
 	GetOuts(pIdx int) mj.Cards
 	// GetHands 手上牌
@@ -80,6 +93,7 @@ func (tb *Table) Distribution(num int) map[int]mj.Cards {
 		splitIdx = sideCount*3 + tb.dice*2
 		break
 	}
+
 	//重新排序
 	forward := tb.tiles[:splitIdx]
 	backward := tb.tiles[splitIdx:]

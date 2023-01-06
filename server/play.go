@@ -81,12 +81,13 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	}
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
+	gc, _ := roundCtx.Handler.WithConfig()
 
 	//游戏策略 恢复状态
-	var provider = ploy.NewProvider("")
+	var provider = ploy.NewProvider(gc.Mode)
 	provider.Renew(roundCtx)
 
-	eval, exist := provider.HandleMapping()[body.RaceType]
+	eval, exist := provider.Handles()[body.RaceType]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
 	}

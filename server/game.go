@@ -39,10 +39,12 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	provider := ploy.NewProvider(gc.Mode)
 
 	//前置事件 初始化牌库
-	tileHandler := provider.Init(gc, pc)
+	roundCtxOps := provider.InitCtx(gc, pc)
+	dispatcher := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
 	notifyHandler := &broadcastHandler{
 		provider:    provider,
-		tileHandler: tileHandler,
+		roundCtxOps: roundCtxOps,
+		dispatcher:  dispatcher,
 	}
 
 	//开启计时器
@@ -50,10 +52,10 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	go exchanger.Run(notifyHandler, pos)
 
 	//注册缓存
-	store.RegisterRoundCtx(body.RoomId, pos, exchanger, tileHandler)
+	store.RegisterRoundCtx(body.RoomId, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
-	Broadcast(nil, api.Packet(1, nil))
+	Broadcast(dispatcher, api.Packet(1, nil))
 
 	return api.Empty, nil
 }
@@ -66,8 +68,8 @@ func next(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoR
 
 type broadcastHandler struct {
 	provider    ploy.GameDefine
-	roundCtx    store.RoundCtx
-	tileHandler engine.RoundCtxOption
+	roundCtx    engine.RoundCtx
+	roundCtxOps engine.RoundOpsCtx
 	dispatcher  *RoomDispatcher
 }
 

@@ -4,7 +4,6 @@ import (
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/server/engine"
-	"mahjong/server/store"
 )
 
 // LaiProvider 癞子
@@ -23,7 +22,7 @@ func newLaiProvider() GameDefine {
 	}
 }
 
-func (lp *LaiProvider) Renew(ctx *store.RoundCtx) {
+func (lp *LaiProvider) Renew(ctx *engine.RoundCtx) {
 	ctxHandler := ctx.Handler.(*BaseRoundCtxHandler)
 
 	//配置参数
@@ -32,13 +31,15 @@ func (lp *LaiProvider) Renew(ctx *store.RoundCtx) {
 	lp.laiTile = ctxHandler.custom["lai"].(int)
 }
 
-func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundCtxOption {
+func (lp *LaiProvider) InitCtx(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundOpsCtx {
 
 	//牌库 只有万，条，筒
 	laiLib := mj.LoadLibrary(mj.WanCard, mj.TiaoCard, mj.TongCard)
 
 	//init
 	handler := startRoundCtxHandler(engine.NewDice(), gc.Nums, laiLib)
+	handler.gc = gc
+	handler.pc = pc
 
 	//从前摸张牌，当前牌为朝天，下一张为癞牌
 	cao := handler.table.Forward()
@@ -64,7 +65,7 @@ func (lp *LaiProvider) Init(gc *api.GameConfigure, pc *api.PaymentConfigure) eng
 	return handler
 }
 
-func (lp *LaiProvider) HandleMapping() map[api.RaceType]RaceEvaluate {
+func (lp *LaiProvider) Handles() map[api.RaceType]RaceEvaluate {
 	evalMap := map[api.RaceType]RaceEvaluate{
 		api.DDDRace:  &dddLai{lai: lp.laiTile},
 		api.ABCRace:  &abcLai{lai: lp.laiTile},
@@ -86,7 +87,7 @@ type dddLai struct {
 	dddEvaluation
 }
 
-func (eval *dddLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *dddLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	if tile == eval.lai {
 		return false, nil
 	}
@@ -98,7 +99,7 @@ type abcLai struct {
 	abcEvaluation
 }
 
-func (eval *abcLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *abcLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	//不能吃癞子
 	if tile == eval.lai {
 		return false, nil
@@ -122,7 +123,7 @@ type eeeeLai struct {
 	eeeeEvaluation
 }
 
-func (eval *eeeeLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *eeeeLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	if tile == eval.lai {
 		return false, nil
 	}
@@ -148,7 +149,7 @@ var LaiTiles = mj.Cards{
 	mj.W9, mj.L9, mj.T9,
 }
 
-func (eval *winLai) Eval(ctx *store.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *winLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	//不能放冲，只能自摸
 	if !eval.canChong && (raceIdx != whoIdx) {
 		return false, nil
@@ -248,35 +249,42 @@ func recoverLaiComb(targetComb *mj.WinComb, tempLaiComb []int, tile int) *mj.Win
 	ddd := targetComb.DDD
 	ee := targetComb.EE
 
-	laiCount := len(tempLaiComb)
-	recoverCount := 0
+	for i := 0; i < len(tempLaiComb); i++ {
+		tempLai := tempLaiComb[i]
 
-	for i := 0; i < len(abc) && recoverCount <= laiCount; i++ {
-		rc, newABC := abc[i].Replace(tempLaiComb, tile)
-		if rc > 0 {
-			abc[i] = newABC
-			recoverCount = recoverCount + rc
+		hasLai := false
+		for j := 0; j < len(abc); j++ {
+			idx := abc[j].Index(tempLai)
+			if idx != -1 {
+				abc[j][idx] = tile
+				hasLai = true
+				break
+			}
+		}
+
+		if hasLai {
+			continue
+		}
+
+		for j := 0; j < len(ddd); j++ {
+			idx := ddd[j].Index(tempLai)
+			if idx != -1 {
+				ddd[j][idx] = tile
+				hasLai = true
+				break
+			}
+		}
+
+		if hasLai {
+			continue
+		}
+
+		idx := ee.Index(tempLai)
+		if idx != -1 {
+			ee[idx] = tile
 		}
 	}
-
-	for i := 0; i < len(ddd) && recoverCount <= laiCount; i++ {
-		rc, newDDD := ddd[i].Replace(tempLaiComb, tile)
-		if rc > 0 {
-			ddd[i] = newDDD
-			recoverCount = recoverCount + rc
-		}
-	}
-
-	if recoverCount < laiCount {
-		rc, newEE := ee.Replace(tempLaiComb, tile)
-		if rc > 0 {
-			targetComb.EE = newEE
-			recoverCount = recoverCount + rc
-		}
-	}
-
 	return targetComb
-
 }
 
 type laiCombination struct {

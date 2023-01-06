@@ -2,30 +2,18 @@ package store
 
 import (
 	"errors"
-	"mahjong/server/api"
 	"mahjong/server/engine"
 	"sync"
 )
 
-type RoundCtx struct {
-	Round     int
-	Position  *engine.Position
-	Exchanger *engine.Exchanger
-	Handler   engine.RoundCtxOption
-}
-
-func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
-	return ctx.Position.Index(acctId)
-}
-
 var roundCtxMap = &sync.Map{}
 
-func LoadRoundCtx(roomId string, acctId string) (*RoundCtx, error) {
+func LoadRoundCtx(roomId string, acctId string) (*engine.RoundCtx, error) {
 	v, ok := roundCtxMap.Load(roomId)
 	if !ok {
 		return nil, errors.New("not found")
 	}
-	ctx := v.(*RoundCtx)
+	ctx := v.(*engine.RoundCtx)
 
 	//check 用户
 	_, err := ctx.Player(acctId)
@@ -35,18 +23,19 @@ func LoadRoundCtx(roomId string, acctId string) (*RoundCtx, error) {
 	return ctx, nil
 }
 
-func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundCtxOption) {
+func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundOpsCtx) *engine.RoundCtx {
 
 	v, ok := roundCtxMap.Load(roomId)
-	ctx := v.(*RoundCtx)
+	ctx := v.(*engine.RoundCtx)
 	if ok {
 		ctx.Round++
 	} else {
-		ctx = &RoundCtx{Round: 1}
+		ctx = &engine.RoundCtx{Round: 1}
 	}
 
 	ctx.Position = pos
 	ctx.Handler = handler
 	ctx.Exchanger = exchanger
 	roundCtxMap.Store(roomId, ctx)
+	return ctx
 }
