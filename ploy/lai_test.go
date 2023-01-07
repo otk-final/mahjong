@@ -7,7 +7,7 @@ import (
 )
 
 func TestLaiWin(t *testing.T) {
-	el := &winLai{
+	el := &winWithLai{
 		lai:           mj.W2,
 		canChong:      false,
 		unique:        false,

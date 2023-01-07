@@ -8,11 +8,11 @@ import (
 
 // LaiProvider 癞子
 type LaiProvider struct {
-	laiTile   int
-	caoTile   int
-	canABC    bool //能吃？
-	canChong  bool //能放冲?
-	laiUnique bool //一癞到底 有且只能有一个癞子胡牌
+	laiTile int
+	caoTile int
+	canABC  bool //能吃？
+	canWin  bool //只能自摸
+	unique  bool //一癞到底 有且只能有一个癞子胡牌
 	BaseProvider
 }
 
@@ -26,6 +26,9 @@ func (lp *LaiProvider) Renew(ctx *engine.RoundCtx) {
 	ctxHandler := ctx.Handler.(*BaseRoundCtxHandler)
 
 	//配置参数
+	lp.canABC = ctxHandler.custom["canAbc"].(bool)
+	lp.canWin = ctxHandler.custom["canWin"].(bool)
+	lp.unique = ctxHandler.custom["unique"].(bool)
 
 	lp.caoTile = ctxHandler.custom["cao"].(int)
 	lp.laiTile = ctxHandler.custom["lai"].(int)
@@ -55,9 +58,6 @@ func (lp *LaiProvider) InitCtx(gc *api.GameConfigure, pc *api.PaymentConfigure) 
 		lai++
 	}
 
-	lp.caoTile = cao
-	lp.laiTile = lai
-
 	//cache
 	handler.custom["cao"] = cao
 	handler.custom["lai"] = lai
@@ -67,12 +67,12 @@ func (lp *LaiProvider) InitCtx(gc *api.GameConfigure, pc *api.PaymentConfigure) 
 
 func (lp *LaiProvider) Handles() map[api.RaceType]RaceEvaluate {
 	evalMap := map[api.RaceType]RaceEvaluate{
-		api.DDDRace:  &dddLai{lai: lp.laiTile},
-		api.ABCRace:  &abcLai{lai: lp.laiTile},
-		api.EEEERace: &eeeeLai{lai: lp.laiTile},
-		api.CaoRace:  &dddEvaluation{},
-		api.LaiRace:  &eeeeEvaluation{},
-		api.WinRace:  &winLai{lai: lp.laiTile, canChong: lp.canChong, unique: lp.laiUnique},
+		api.DDDRace:  &dddWithLai{lai: lp.laiTile},
+		api.ABCRace:  &abcWithLai{lai: lp.laiTile},
+		api.EEEERace: &eeeeWithLai{lai: lp.laiTile},
+		api.CaoRace:  &dddWithLai{lai: lp.laiTile},
+		api.LaiRace:  &fixWithLai{tile: lp.laiTile},
+		api.WinRace:  &winWithLai{lai: lp.laiTile, canWin: lp.canWin, unique: lp.unique},
 	}
 
 	//不能吃
@@ -82,24 +82,24 @@ func (lp *LaiProvider) Handles() map[api.RaceType]RaceEvaluate {
 	return evalMap
 }
 
-type dddLai struct {
+type dddWithLai struct {
 	lai int
 	dddEvaluation
 }
 
-func (eval *dddLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *dddWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	if tile == eval.lai {
 		return false, nil
 	}
 	return eval.dddEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
 }
 
-type abcLai struct {
+type abcWithLai struct {
 	lai int
 	abcEvaluation
 }
 
-func (eval *abcLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *abcWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	//不能吃癞子
 	if tile == eval.lai {
 		return false, nil
@@ -118,22 +118,39 @@ func (eval *abcLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool,
 	return false, nil
 }
 
-type eeeeLai struct {
+type fixWithLai struct {
+	tile int
+}
+
+func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+	//只能自杠
+	if raceIdx != whoIdx || eval.tile != tile {
+		return false, nil
+	}
+	//是否存在
+	exist := ctx.Handler.LoadTiles(raceIdx).Hands.Index(tile)
+	if exist != -1 {
+		return false, nil
+	}
+	return true, []mj.Cards{{tile}}
+}
+
+type eeeeWithLai struct {
 	lai int
 	eeeeEvaluation
 }
 
-func (eval *eeeeLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *eeeeWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	if tile == eval.lai {
 		return false, nil
 	}
 	return eval.eeeeEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
 }
 
-type winLai struct {
-	lai      int
-	canChong bool
-	unique   bool
+type winWithLai struct {
+	lai    int
+	canWin bool
+	unique bool
 	winEvaluation
 }
 
@@ -149,9 +166,10 @@ var LaiTiles = mj.Cards{
 	mj.W9, mj.L9, mj.T9,
 }
 
-func (eval *winLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	//不能放冲，只能自摸
-	if !eval.canChong && (raceIdx != whoIdx) {
+func (eval *winWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+
+	// 只能自摸
+	if eval.canWin && (raceIdx != whoIdx) {
 		return false, nil
 	}
 
@@ -183,7 +201,7 @@ func (eval *winLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool,
 	return false, nil
 }
 
-func (eval *winLai) multiLaiCheck(temp mj.Cards) (bool, *mj.WinComb) {
+func (eval *winWithLai) multiLaiCheck(temp mj.Cards) (bool, *mj.WinComb) {
 	combOps := &laiCombination{tiles: LaiTiles}
 	//多个癞子胡牌算法
 	winChecker := mj.NewWinChecker()
