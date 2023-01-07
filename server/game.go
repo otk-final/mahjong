@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"log"
 	"mahjong/ploy"
 	"mahjong/server/api"
 	"mahjong/server/engine"
@@ -48,7 +49,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	}
 
 	//开启计时器
-	exchanger := engine.NewExchanger(30 * time.Second)
+	exchanger := engine.NewExchanger(45 * time.Second)
 	go exchanger.Run(notifyHandler, pos)
 
 	//注册缓存
@@ -61,7 +62,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 			Turn:  player.Idx == 0,
 			Hands: roundCtxOps.LoadTiles(player.Idx).Hands,
 		}
-		return api.Packet(api.BeginEvent, payload)
+		return api.Packet(api.BeginEvent, "开始", payload)
 	})
 
 	return api.Empty, nil
@@ -104,30 +105,36 @@ type broadcastHandler struct {
 }
 
 func (handler *broadcastHandler) Take(event *api.TakePayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.TakeEvent, event))
+	log.Printf("广播：take\n")
+	Broadcast(handler.dispatcher, api.Packet(api.TakeEvent, "摸牌", event))
 }
 
 func (handler *broadcastHandler) Put(ackId int, event *api.PutPayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.PutEvent, event))
+	log.Printf("广播：put\n")
+	Broadcast(handler.dispatcher, api.Packet(api.PutEvent, "打牌", event))
 }
 
 func (handler *broadcastHandler) Race(event *api.RacePayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, event))
+	log.Printf("广播：race %d %s\n", event.RaceType, api.RaceNames[event.RaceType])
+	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event))
 }
 
-func (handler *broadcastHandler) Win(event *api.RacePayload) bool {
-	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, event))
+func (handler *broadcastHandler) Win(event *api.WinPayload) bool {
+	log.Printf("广播：win\n")
+	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, "胡牌", event))
 	return handler.provider.Finish()
 }
 
 func (handler *broadcastHandler) Ack(event *api.AckPayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, event))
+	log.Printf("广播：ack\n")
+	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "待确认", event))
 }
 
 func (handler *broadcastHandler) Turn(who int, ok bool) {
-	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, &api.TurnPayload{Who: who}))
+	log.Printf("广播：turn %d\n", who)
+	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who}))
 }
 
-func (handler *broadcastHandler) Quit() {
+func (handler *broadcastHandler) Quit(ok bool) {
 	handler.provider.Quit()
 }

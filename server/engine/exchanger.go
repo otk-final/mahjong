@@ -12,6 +12,7 @@ type Exchanger struct {
 	takeCh  chan *api.TakePayload
 	putCh   chan *api.PutPayload
 	raceCh  chan *api.RacePayload
+	winCh   chan *api.WinPayload
 	ackCh   chan *api.AckPayload
 }
 
@@ -23,13 +24,13 @@ type NotifyHandle interface {
 	// Race 抢占
 	Race(event *api.RacePayload)
 	// Win 胡牌
-	Win(event *api.RacePayload) bool
+	Win(event *api.WinPayload) bool
 	// Ack 回执确认
 	Ack(event *api.AckPayload)
 	// Turn 轮转
 	Turn(who int, ok bool)
 	//Quit 退出
-	Quit()
+	Quit(ok bool)
 }
 
 // 回执队列
@@ -60,6 +61,7 @@ func NewExchanger(timeout time.Duration) *Exchanger {
 		takeCh:  make(chan *api.TakePayload, 0),
 		putCh:   make(chan *api.PutPayload, 0),
 		raceCh:  make(chan *api.RacePayload, 0),
+		winCh:   make(chan *api.WinPayload, 0),
 		ackCh:   make(chan *api.AckPayload, 0),
 	}
 }
@@ -74,15 +76,13 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 		countdown.Stop()
 		close(exc.takeCh)
 		close(exc.putCh)
+		close(exc.winCh)
 		close(exc.raceCh)
 		close(exc.ackCh)
 	}()
 
-	exc.pos = pos
-
 	//从庄家开始
-	masterIdx := pos.start()
-	go handler.Turn(masterIdx, true)
+	pos.move(pos.master.Idx)
 
 	//default 就绪队列 除自己
 	aq := &ackQueue{members: pos.Num() - 1}
@@ -96,7 +96,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			//牌库摸完了 结束当前回合
 			if t.Tile == -1 {
 				//退出
-				handler.Quit()
+				handler.Quit(false)
 				return
 			}
 			//摸牌事件
@@ -107,7 +107,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			//出牌事件
 			handler.Put(ackId, p)
 		case r := <-exc.raceCh:
-			//抢占 碰，杠，吃，胡... 设置当前回合
+			//抢占 碰，杠，吃，... 设置当前回合
 			pos.move(r.Who)
 
 			//并清除待ack队列
@@ -116,16 +116,24 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			//重制定时器
 			countdown.Reset(exc.timeout)
 
-			//事件通知
-			if r.RaceType == api.WinRace { //根据业务规则判断胡牌后是否继续
-				goon := handler.Win(r)
-				if goon {
-					//退出
-					handler.Quit()
-					return
-				}
-			} else {
-				handler.Race(r)
+			//通知
+			handler.Race(r)
+
+		case w := <-exc.winCh:
+			//抢占 胡... 设置当前回合
+			pos.move(w.Who)
+
+			//并清除待ack队列
+			aq.reset()
+
+			//重制定时器
+			countdown.Reset(exc.timeout)
+
+			goon := handler.Win(w)
+			if goon {
+				//退出
+				handler.Quit(true)
+				return
 			}
 		case a := <-exc.ackCh:
 			handler.Ack(a)
@@ -155,9 +163,9 @@ func (exc *Exchanger) PostPut(e *api.PutPayload) {
 func (exc *Exchanger) PostRace(e *api.RacePayload) {
 	exc.raceCh <- e
 }
+func (exc *Exchanger) PostWin(e *api.WinPayload) {
+	exc.winCh <- e
+}
 func (exc *Exchanger) PostAck(e *api.AckPayload) {
 	exc.ackCh <- e
-}
-func (exc *Exchanger) GetPosition() *Position {
-	return exc.pos
 }

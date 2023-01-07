@@ -42,8 +42,6 @@ type RoundOpsCtx interface {
 type Table struct {
 	lock    sync.Mutex
 	dice    int
-	fIdx    int //向前
-	bIdx    int //向后
 	tiles   mj.Cards
 	remains mj.Cards
 }
@@ -110,7 +108,7 @@ func (tb *Table) Distribution(num int) map[int]mj.Cards {
 
 	startIdx := 0
 	//发牌 共13张 3 * 4 + 1
-	for i := 0; i < num; i++ {
+	for i := 0; i < 4; i++ {
 		count := 4
 		if i == 3 { //最后轮流一张
 			count = 1
@@ -120,9 +118,6 @@ func (tb *Table) Distribution(num int) map[int]mj.Cards {
 			startIdx = startIdx + count
 		}
 	}
-
-	//记录当前位置
-	tb.fIdx = startIdx
 	return members
 }
 
@@ -134,8 +129,6 @@ func (tb *Table) Forward() int {
 	if len(tb.remains) == 0 {
 		return -1
 	}
-
-	tb.fIdx++
 
 	head := tb.remains[0]
 	tb.remains = tb.remains[1:]
@@ -151,8 +144,8 @@ func (tb *Table) Backward() int {
 		return -1
 	}
 
-	tb.bIdx++
-	tail := tb.remains[len(tb.remains)-1]
-	tb.remains = tb.remains[0 : len(tb.remains)-2]
+	tailIdx := len(tb.remains) - 1
+	tail := tb.remains[tailIdx]
+	tb.remains = tb.remains[0:tailIdx]
 	return tail
 }

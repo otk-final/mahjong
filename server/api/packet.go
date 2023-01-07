@@ -11,7 +11,6 @@ const (
 	JoinEvent WebEvent = iota + 100
 	ExitEvent
 	BeginEvent
-	NextEvent
 	TakeEvent
 	PutEvent
 	RaceEvent
@@ -21,9 +20,10 @@ const (
 )
 
 type WebPacket[T any] struct {
-	Event   WebEvent `json:"event"`
-	EventId string   `json:"event_id"`
-	Payload T        `json:"payload"`
+	Event     WebEvent `json:"event"`
+	EventName string   `json:"eventName"`
+	EventId   string   `json:"eventId"`
+	Payload   T        `json:"payload"`
 }
 
 type TakePayload struct {
@@ -39,11 +39,21 @@ type PutPayload struct {
 
 type RacePayload struct {
 	Who       int      `json:"who"`
+	Other     int      `json:"other"`
 	Round     int      `json:"round"`
 	RaceType  RaceType `json:"raceType"`
 	HandTiles []int    `json:"handTiles"`
 	Tile      int      `json:"tile"`
 }
+
+type WinPayload struct {
+	Who       int   `json:"who"`
+	Other     int   `json:"other"`
+	Round     int   `json:"round"`
+	HandTiles []int `json:"handTiles"`
+	Tile      int   `json:"tile"`
+}
+
 type AckPayload struct {
 	Who   int `json:"who"`
 	Round int `json:"round"`
@@ -65,6 +75,6 @@ type BeginPayload struct {
 	Hands mj.Cards `json:"hands"`
 }
 
-func Packet[T any](code WebEvent, event T) *WebPacket[T] {
-	return &WebPacket[T]{Event: code, EventId: uuid.New().String(), Payload: event}
+func Packet[T any](code WebEvent, name string, event T) *WebPacket[T] {
+	return &WebPacket[T]{Event: code, EventName: name, EventId: uuid.New().String(), Payload: event}
 }

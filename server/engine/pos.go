@@ -59,11 +59,6 @@ func (pos *Position) Check(who int) bool {
 	return pos.turnIdx == who
 }
 
-//从庄家开始
-func (pos *Position) start() int {
-	return pos.master.Idx
-}
-
 // Join 就坐
 func (pos *Position) Join(p *api.Player) error {
 

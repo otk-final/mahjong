@@ -62,11 +62,7 @@ func put(w http.ResponseWriter, r *http.Request, body *api.PutParameter) (*api.N
 	//保存
 	roundCtx.Handler.AddPut(own.Idx, body.Tile)
 	//通知
-	roundCtx.Exchanger.PostPut(&api.PutPayload{
-		Who:   own.Idx,
-		Round: roundCtx.Round,
-		Tile:  body.Tile,
-	})
+	roundCtx.Exchanger.PostPut(&body.PutPayload)
 	return api.Empty, nil
 }
 
@@ -97,13 +93,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	}
 
 	//通知
-	roundCtx.Exchanger.PostRace(&api.RacePayload{
-		Who:       own.Idx,
-		Round:     roundCtx.Round,
-		RaceType:  body.RaceType,
-		HandTiles: body.HandTiles,
-		Tile:      body.Tile,
-	})
+	roundCtx.Exchanger.PostRace(&body.RacePayload)
 
 	//后置事件
 	var nextAction *api.RacePost

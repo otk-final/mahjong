@@ -83,7 +83,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 
 	//通知有新玩家加入
 	rx := &RoomDispatcher{RoomId: body.RoomId, members: exitJoined}
-	Broadcast(rx, api.Packet(api.JoinEvent, &api.JoinPayload{Members: exitJoined, Round: 0}))
+	Broadcast(rx, api.Packet(api.JoinEvent, "加入", &api.JoinPayload{Members: exitJoined, Round: 0}))
 
 	//房间信息
 	gc, pc := store.GetRoomConfig(body.RoomId)
