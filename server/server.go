@@ -5,14 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"mahjong/server/api"
 	"mahjong/server/wrap"
+	"net/http"
 )
 
 //http api
 var muxRouter = mux.NewRouter()
 
-func Apis() *mux.Router {
+//跨域规则
+var muxCors = cors.AllowAll()
+
+func Apis() http.Handler {
 
 	//房间
 	room := muxRouter.Methods("POST").PathPrefix("/room").Subrouter()
@@ -36,7 +41,7 @@ func Apis() *mux.Router {
 
 	//websocket链接
 	muxRouter.Handle("/ws/{RoomId}", wsRoute())
-	return muxRouter
+	return muxCors.Handler(muxRouter)
 }
 
 type RoomDispatcher struct {
@@ -58,7 +63,7 @@ func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
 	msg, _ := json.Marshal(packet)
 	//所有成员
 	for _, member := range dispatcher.members {
-		memberChan, err := dispatcher.GetPlayer(member.AcctId)
+		memberChan, err := dispatcher.GetPlayer(member.UId)
 		if err != nil {
 			continue
 		}
@@ -70,7 +75,7 @@ func BroadcastFunc[T any](dispatcher *RoomDispatcher, fn func(*api.Player) *api.
 	//所有成员
 	for _, member := range dispatcher.members {
 		packet := fn(member)
-		memberChan, err := dispatcher.GetPlayer(member.AcctId)
+		memberChan, err := dispatcher.GetPlayer(member.UId)
 		if err != nil {
 			continue
 		}

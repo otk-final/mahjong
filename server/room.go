@@ -14,10 +14,10 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 	//用户信息
 	header := wrap.GetHeader(r)
 	master := &api.Player{
-		Idx:    0,
-		AcctId: header.UserId,
-		Name:   header.UserName,
-		Alias:  "庄家",
+		Idx:   0,
+		UId:   header.UserId,
+		UName: header.UserName,
+		Alias: "庄家",
 	}
 
 	//生成房间号
@@ -36,7 +36,7 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 	return &api.RoomInf{
 		RoomId:  roomId,
 		Own:     master,
-		Players: []*api.Player{master},
+		Players: []*api.Player{},
 		Game:    body.Game,
 		Payment: body.Payment,
 	}, nil
@@ -64,33 +64,38 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	//自动选座 idx = -1
 	member := &api.Player{
 		Idx:    -1,
-		AcctId: header.UserId,
-		Name:   header.UserName,
+		UId:    header.UserId,
+		UName:  header.UserName,
 		Alias:  "闲家",
+		Avatar: "",
+		Ip:     r.RemoteAddr,
 	}
-
-	//通知有新玩家加入
-	exitJoined := pos.Joined()
-
-	//入座
-	err = pos.Join(member)
-	if err != nil {
-		return nil, err
-	}
-
-	//update
-	store.UpdatePosition(body.RoomId, pos)
-
-	//通知有新玩家加入
-	rx := &RoomDispatcher{RoomId: body.RoomId, members: exitJoined}
-	Broadcast(rx, api.Packet(api.JoinEvent, "加入", &api.JoinPayload{Members: exitJoined, Round: 0}))
-
 	//房间信息
 	gc, pc := store.GetRoomConfig(body.RoomId)
+
+	//是否已就坐
+	exist, err := pos.Index(header.UserId)
+	if exist != nil {
+		member = exist
+	} else {
+		//入座
+		err = pos.Join(member)
+		if err != nil {
+			return nil, err
+		}
+
+		//update
+		store.UpdatePosition(body.RoomId, pos)
+
+		//通知新玩家加入
+		rx := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
+		Broadcast(rx, api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member, Round: 0}))
+	}
+
 	return &api.RoomInf{
 		RoomId:  body.RoomId,
 		Own:     member,
-		Players: exitJoined,
+		Players: pos.Joined(),
 		Game:    gc,
 		Payment: pc,
 	}, nil

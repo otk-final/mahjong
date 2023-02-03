@@ -41,11 +41,10 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 
 	//前置事件 初始化牌库
 	roundCtxOps := provider.InitCtx(gc, pc)
-	dispatcher := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
-	notifyHandler := &broadcastHandler{
-		provider:    provider,
-		roundCtxOps: roundCtxOps,
-		dispatcher:  dispatcher,
+	startDispatcher := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
+	notifyHandler := &BroadcastHandler{
+		provider:   provider,
+		dispatcher: startDispatcher,
 	}
 
 	//开启计时器
@@ -56,7 +55,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	store.RegisterRoundCtx(body.RoomId, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
-	BroadcastFunc(dispatcher, func(player *api.Player) *api.WebPacket[api.BeginPayload] {
+	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.BeginPayload] {
 		payload := api.BeginPayload{
 			Who:   player.Idx,
 			Turn:  player.Idx == 0,
@@ -85,7 +84,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GamePlayerQuery) (*a
 
 	//查询玩家信息
 	//member, _ := ctx.Position.Index(header.UserId)
-	//isOwn := strings.EqualFold(member.AcctId, header.UserId)
+	//isOwn := strings.EqualFold(member.UId, header.UserId)
 
 	//TODO 非自己的牌，查询是否选择明牌
 
@@ -97,44 +96,47 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GamePlayerQuery) (*a
 	}, nil
 }
 
-type broadcastHandler struct {
-	provider    ploy.GameDefine
-	roundCtx    engine.RoundCtx
-	roundCtxOps engine.RoundOpsCtx
-	dispatcher  *RoomDispatcher
+type BroadcastHandler struct {
+	roomId     string
+	provider   ploy.GameDefine
+	dispatcher *RoomDispatcher
 }
 
-func (handler *broadcastHandler) Take(event *api.TakePayload) {
+func (handler *BroadcastHandler) RoundCtx(acctId string) (*engine.RoundCtx, error) {
+	return store.LoadRoundCtx(handler.roomId, acctId)
+}
+
+func (handler *BroadcastHandler) Take(event *api.TakePayload) {
 	log.Printf("广播：take\n")
 	Broadcast(handler.dispatcher, api.Packet(api.TakeEvent, "摸牌", event))
 }
 
-func (handler *broadcastHandler) Put(ackId int, event *api.PutPayload) {
+func (handler *BroadcastHandler) Put(ackId int, event *api.PutPayload) {
 	log.Printf("广播：put\n")
 	Broadcast(handler.dispatcher, api.Packet(api.PutEvent, "打牌", event))
 }
 
-func (handler *broadcastHandler) Race(event *api.RacePayload) {
+func (handler *BroadcastHandler) Race(event *api.RacePayload) {
 	log.Printf("广播：race %d %s\n", event.RaceType, api.RaceNames[event.RaceType])
 	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event))
 }
 
-func (handler *broadcastHandler) Win(event *api.WinPayload) bool {
+func (handler *BroadcastHandler) Win(event *api.WinPayload) bool {
 	log.Printf("广播：win\n")
 	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, "胡牌", event))
 	return handler.provider.Finish()
 }
 
-func (handler *broadcastHandler) Ack(event *api.AckPayload) {
+func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
 	log.Printf("广播：ack\n")
 	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "待确认", event))
 }
 
-func (handler *broadcastHandler) Turn(who int, ok bool) {
+func (handler *BroadcastHandler) Turn(who int, ok bool) {
 	log.Printf("广播：turn %d\n", who)
 	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who}))
 }
 
-func (handler *broadcastHandler) Quit(ok bool) {
+func (handler *BroadcastHandler) Quit(ok bool) {
 	handler.provider.Quit()
 }

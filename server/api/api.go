@@ -41,9 +41,10 @@ type ExitRoom struct {
 // Player 玩家身份信息
 type Player struct {
 	Idx    int    `json:"idx"`
-	AcctId string `json:"acctId"`
-	Name   string `json:"name"`
+	UId    string `json:"uid"`
+	UName  string `json:"uname"`
 	Alias  string `json:"alias"`
+	Ip     string `json:"ip"`
 	Avatar string `json:"avatar"`
 }
 

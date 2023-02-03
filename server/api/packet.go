@@ -65,8 +65,8 @@ type TurnPayload struct {
 }
 
 type JoinPayload struct {
-	Members []*Player `json:"members"`
-	Round   int       `json:"round"`
+	NewPlayer *Player `json:"newPlayer"`
+	Round     int     `json:"round"`
 }
 
 type BeginPayload struct {

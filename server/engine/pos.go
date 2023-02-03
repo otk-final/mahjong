@@ -21,14 +21,13 @@ func NewPosition(num int, master *api.Player) (*Position, error) {
 	if master.Idx >= num {
 		return nil, errors.New("master idx error")
 	}
-	members := []*api.Player{master}
 
 	return &Position{
 		lock:    &sync.Mutex{},
 		turnIdx: 0,
 		num:     num,
 		master:  master,
-		members: members,
+		members: []*api.Player{master},
 	}, nil
 }
 
@@ -96,12 +95,12 @@ func (pos *Position) Joined() []*api.Player {
 }
 
 func (pos *Position) IsMaster(acctId string) bool {
-	return strings.EqualFold(pos.master.AcctId, acctId)
+	return strings.EqualFold(pos.master.UId, acctId)
 }
 
 func (pos *Position) Index(acctId string) (*api.Player, error) {
 	for _, m := range pos.members {
-		if strings.EqualFold(m.AcctId, acctId) {
+		if strings.EqualFold(m.UId, acctId) {
 			return m, nil
 		}
 	}

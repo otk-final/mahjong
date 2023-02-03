@@ -7,22 +7,30 @@ import (
 	"log"
 	"mahjong/server/api"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
 
 func wsRoute() http.HandlerFunc {
-	wu := websocket.Upgrader{
-		HandshakeTimeout: 10 * time.Second,
-		ReadBufferSize:   1024,
-		WriteBufferSize:  1024,
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-		Error: nil,
-	}
+
 	//创建链接
 	return func(writer http.ResponseWriter, request *http.Request) {
+		//获取认证信息
+		subProtocolsHeaders := websocket.Subprotocols(request)
+		wu := websocket.Upgrader{
+			HandshakeTimeout: 10 * time.Second,
+			ReadBufferSize:   1024 * 2,
+			WriteBufferSize:  1024 * 2,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+			Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+				log.Println(reason)
+			},
+			Subprotocols: subProtocolsHeaders,
+		}
+
 		//非websocket请求
 		if !websocket.IsWebSocketUpgrade(request) {
 			return
@@ -33,17 +41,30 @@ func wsRoute() http.HandlerFunc {
 		if err != nil {
 			return
 		}
+		//获取认证信息
+		var identity *api.IdentityHeader
+		if len(subProtocolsHeaders) > 0 {
+			un, _ := url.QueryUnescape(subProtocolsHeaders[1])
+			identity = &api.IdentityHeader{
+				UserId:   subProtocolsHeaders[0],
+				UserName: un,
+				Token:    subProtocolsHeaders[2],
+			}
 
-		//缓存
-		wsc := &netChan{
-			roomId: roomId,
-			identity: &api.IdentityHeader{
+		} else {
+			identity = &api.IdentityHeader{
 				UserId:   request.Header.Get("userId"),
 				UserName: request.Header.Get("userName"),
 				Token:    request.Header.Get("token"),
-			},
-			read:  make(chan []byte, 100),
-			write: make(chan []byte, 100),
+			}
+		}
+
+		//缓存
+		wsc := &netChan{
+			roomId:   roomId,
+			identity: identity,
+			read:     make(chan []byte, 100),
+			write:    make(chan []byte, 100),
 		}
 		_, _ = netChanMap.LoadOrStore(wsc.Key(), wsc)
 

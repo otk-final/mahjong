@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"mahjong/server/api"
 	"net/http"
+	"net/url"
 )
 
 var respRender = render.New()
@@ -52,9 +53,10 @@ func (receiver AnyHandler[T, R]) Func() http.HandlerFunc {
 		}
 
 		//header
+		un, _ := url.QueryUnescape(request.Header.Get("userName"))
 		apiHeader := &api.IdentityHeader{
 			UserId:   request.Header.Get("userId"),
-			UserName: request.Header.Get("userName"),
+			UserName: un,
 			Token:    request.Header.Get("token"),
 		}
 
