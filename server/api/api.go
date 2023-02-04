@@ -109,11 +109,38 @@ type GamePlayerInf struct {
 
 // PlayerTiles 玩家牌库
 type PlayerTiles struct {
+	Idx        int        `json:"idx"`
 	Hands      mj.Cards   `json:"hands"`
 	Races      []mj.Cards `json:"races"`
 	Outs       mj.Cards   `json:"outs"`
 	LastedTake int        `json:"lastedTake"`
 	LastedPut  int        `json:"lastedPut"`
+}
+
+func (tile *PlayerTiles) Copy(explicit bool) *PlayerTiles {
+
+	tempRaces := make([]mj.Cards, 0)
+	for _, comb := range tile.Races {
+		tempRaces = append(tempRaces, comb.Clone())
+	}
+	temp := &PlayerTiles{
+		Idx:        tile.Idx,
+		Hands:      tile.Hands.Clone(),
+		Races:      tempRaces,
+		Outs:       tile.Hands.Clone(),
+		LastedTake: tile.LastedTake,
+		LastedPut:  tile.LastedPut,
+	}
+	if explicit {
+		return temp
+	}
+
+	//屏蔽数据
+	temp.Hands = make(mj.Cards, len(temp.Hands))
+	temp.LastedTake = 0
+	temp.LastedPut = 0
+
+	return temp
 }
 
 //PlayerProfits 玩家收益

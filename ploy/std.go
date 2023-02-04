@@ -46,6 +46,7 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 	//保存牌库
 	for k, v := range members {
 		ctxOps.tiles[k] = &api.PlayerTiles{
+			Idx:        k,
 			Hands:      v,
 			Races:      make([]mj.Cards, 0),
 			Outs:       make(mj.Cards, 0),

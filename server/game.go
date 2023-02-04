@@ -9,7 +9,6 @@ import (
 	"mahjong/server/store"
 	"mahjong/server/wrap"
 	"net/http"
-	"time"
 )
 
 // 开始游戏
@@ -48,7 +47,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	}
 
 	//开启计时器
-	exchanger := engine.NewExchanger(45 * time.Second)
+	exchanger := engine.NewExchanger(30)
 	go exchanger.Run(notifyHandler, pos)
 
 	//注册缓存
@@ -56,14 +55,20 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 
 	//通知牌局开始
 	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.BeginPayload] {
-		payload := api.BeginPayload{
-			Who:   player.Idx,
-			Turn:  player.Idx == 0,
-			Hands: roundCtxOps.LoadTiles(player.Idx).Hands,
-		}
-		return api.Packet(api.BeginEvent, "开始", payload)
-	})
 
+		//从庄家开始
+		startPayload := api.BeginPayload{
+			TurnIdx:  0,
+			Remained: roundCtxOps.Remained(),
+			Tiles:    make([]*api.PlayerTiles, 0),
+		}
+		currentIdx := player.Idx
+		for _, user := range startDispatcher.members {
+			tiles := roundCtxOps.LoadTiles(user.Idx).Copy(currentIdx == user.Idx)
+			startPayload.Tiles = append(startPayload.Tiles, tiles)
+		}
+		return api.Packet(api.BeginEvent, "开始", startPayload)
+	})
 	return api.Empty, nil
 }
 
@@ -132,9 +137,9 @@ func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
 	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "待确认", event))
 }
 
-func (handler *BroadcastHandler) Turn(who int, ok bool) {
+func (handler *BroadcastHandler) Turn(who int, duration int, ok bool) {
 	log.Printf("广播：turn %d\n", who)
-	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who}))
+	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Duration: duration}))
 }
 
 func (handler *BroadcastHandler) Quit(ok bool) {

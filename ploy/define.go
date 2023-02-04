@@ -110,3 +110,7 @@ func (b *BaseRoundCtxHandler) Forward(pIdx int) int {
 func (b *BaseRoundCtxHandler) Backward(pIdx int) int {
 	return b.table.Backward()
 }
+
+func (b *BaseRoundCtxHandler) Remained() int {
+	return b.table.Remains()
+}

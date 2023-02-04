@@ -37,6 +37,8 @@ type RoundOpsCtx interface {
 	Forward(pIdx int) int
 
 	Backward(pIdx int) int
+
+	Remained() int
 }
 
 type Table struct {
@@ -148,4 +150,7 @@ func (tb *Table) Backward() int {
 	tail := tb.remains[tailIdx]
 	tb.remains = tb.remains[0:tailIdx]
 	return tail
+}
+func (tb *Table) Remains() int {
+	return len(tb.remains)
 }
