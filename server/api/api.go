@@ -60,6 +60,7 @@ type RoomInf struct {
 
 type GameParameter struct {
 	RoomId string `json:"roomId"`
+	Ploy   string `json:"ploy"`
 }
 
 type TakeParameter struct {
@@ -97,8 +98,8 @@ type RacePreview struct {
 	RoomId string `json:"roomId"`
 	Round  int    `json:"round"`
 	AckId  int    `json:"ackId"`
+	Target int    `json:"target"`
 	Tile   int    `json:"tile"`
-	Who    int    `json:"who"`
 }
 
 type UsableRaceItem struct {

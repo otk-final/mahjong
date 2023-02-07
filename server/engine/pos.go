@@ -62,6 +62,14 @@ func (pos *Position) TurnIdx() int {
 	return pos.turnIdx
 }
 
+func (pos *Position) LastedIdx() int {
+	pre := pos.turnIdx - 1
+	if pre < 0 {
+		return pos.num - 1
+	}
+	return pre
+}
+
 // Join 就坐
 func (pos *Position) Join(p *api.Player) error {
 

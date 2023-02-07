@@ -68,6 +68,7 @@ type JoinPayload struct {
 type GamePayload struct {
 	TurnIdx      int            `json:"turnIdx"`
 	TurnInterval int            `json:"turnInterval"`
+	LastedIdx    int            `json:"lastedIdx"`
 	Remained     int            `json:"remained"`
 	Tiles        []*PlayerTiles `json:"tiles"`
 }

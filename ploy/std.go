@@ -83,9 +83,19 @@ func newBaseProvider() GameDefine {
 type abcEvaluation struct {
 }
 
-func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func isUpperIdx(mineIdx, whoIdx, members int) bool {
 	//只能吃上家出的牌
-	if raceIdx-whoIdx != 1 || raceIdx-whoIdx != ctx.Pos().Num()*-1 {
+	limit := mineIdx - whoIdx
+	if limit == 1 || limit == (members-1)*-1 {
+		return true
+	}
+	return false
+}
+
+func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+
+	//只能吃上家出的牌
+	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) {
 		return false, nil
 	}
 

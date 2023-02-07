@@ -44,6 +44,13 @@ func NewProvider(mode string) GameDefine {
 	return nil
 }
 
+func BuildProvider(roundCtx *engine.RoundCtx) GameDefine {
+	gc, _ := roundCtx.HandlerCtx().Configure()
+	var provider = NewProvider(gc.Mode)
+	provider.Renew(roundCtx)
+	return provider
+}
+
 type BaseRoundCtxHandler struct {
 	gc      *api.GameConfigure
 	pc      *api.PaymentConfigure
@@ -53,7 +60,7 @@ type BaseRoundCtxHandler struct {
 	custom  map[string]any
 }
 
-func (b *BaseRoundCtxHandler) WithConfig() (*api.GameConfigure, *api.PaymentConfigure) {
+func (b *BaseRoundCtxHandler) Configure() (*api.GameConfigure, *api.PaymentConfigure) {
 	return b.gc, b.pc
 }
 

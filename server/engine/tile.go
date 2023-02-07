@@ -39,8 +39,7 @@ func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
 
 // RoundOpsCtx 当局
 type RoundOpsCtx interface {
-	// WithConfig 当前配置
-	WithConfig() (*api.GameConfigure, *api.PaymentConfigure)
+	Configure() (*api.GameConfigure, *api.PaymentConfigure)
 
 	GetTiles(pIdx int) *api.PlayerTiles
 

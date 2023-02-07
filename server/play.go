@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"log"
 	"mahjong/ploy"
 	"mahjong/server/api"
 	"mahjong/server/store"
@@ -82,18 +81,20 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
 
-	//游戏策略 恢复状态
-	gc, _ := roundCtx.HandlerCtx().WithConfig()
-	var provider = ploy.NewProvider(gc.Mode)
-	provider.Renew(roundCtx)
+	//游戏策略
+	var provider = ploy.BuildProvider(roundCtx)
 	eval, exist := provider.Handles()[body.RaceType]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
 	}
+
 	//判定
-	if ok, _ := eval.Eval(roundCtx, own.Idx, body.Who, body.Tile); !ok {
+	if ok, _ := eval.Eval(roundCtx, own.Idx, body.Target, body.Tile); !ok {
 		return nil, errors.New("不支持牌型")
 	}
+
+	//保存
+	roundCtx.HandlerCtx().AddRace(own.Idx, body.Tiles, body.Who, body.Tile)
 
 	//通知
 	roundCtx.Exchange().PostRace(&body.RacePayload)
@@ -105,18 +106,13 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 		//杠，从后摸
 		next = &api.RaceResult{Action: "take", Direction: -1}
 		break
-	case api.ABCRace:
-		//吃，出牌
-		next = &api.RaceResult{Action: "put", Direction: 0}
-		break
-	case api.DDDRace, api.CaoRace:
-		//碰，出牌
+	case api.ABCRace, api.DDDRace, api.CaoRace:
+		//吃，碰 , 朝 出牌
 		next = &api.RaceResult{Action: "put", Direction: 0}
 		break
 	default:
 		next = &api.RaceResult{Action: "ignore", Direction: 0}
 	}
-
 	//最新持牌
 	next.Hands = roundCtx.HandlerCtx().GetTiles(own.Idx).Hands
 	return next, nil
@@ -132,23 +128,21 @@ func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*ap
 	}
 	own, _ := roundCtx.Player(header.UserId)
 
-	//判定
-	gc, _ := roundCtx.HandlerCtx().WithConfig()
-	var provider = ploy.NewProvider(gc.Mode)
-	provider.Renew(roundCtx)
+	//策略
+	var provider = ploy.BuildProvider(roundCtx)
 	handles := provider.Handles()
 
 	//判定可用
 	items := make([]*api.UsableRaceItem, 0)
 	for k, v := range handles {
-		ok, usable := v.Eval(roundCtx, own.Idx, body.Who, body.Tile)
+		ok, usable := v.Eval(roundCtx, own.Idx, body.Target, body.Tile)
 		if !ok {
 			continue
 		}
 		items = append(items, &api.UsableRaceItem{RaceType: k, Tiles: usable})
 	}
 
-	if own.Idx == body.Who {
+	if own.Idx == body.Target {
 		//自己回合
 		items = append(items, &api.UsableRaceItem{RaceType: api.PutRace})
 	} else {
@@ -160,11 +154,6 @@ func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*ap
 			roundCtx.Exchange().PostAck(&api.AckPayload{Who: own.Idx, Round: body.Round, AckId: body.AckId})
 		}
 	}
-	itemNames := make([]string, 0)
-	for _, i := range items {
-		itemNames = append(itemNames, api.RaceNames[i.RaceType])
-	}
-	log.Printf("%s 判定：%v\n", header.UserId, itemNames)
 	return &api.RaceEffects{Usable: items}, nil
 }
 

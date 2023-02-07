@@ -105,6 +105,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		GamePayload: api.GamePayload{
 			TurnIdx:      roundCtx.Pos().TurnIdx(),
 			TurnInterval: turnInterval,
+			LastedIdx:    roundCtx.Pos().LastedIdx(),
 			Remained:     roundCtxOps.Remained(),
 			Tiles:        userTiles,
 		},
