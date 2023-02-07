@@ -24,7 +24,7 @@ func NewPosition(num int, master *api.Player) (*Position, error) {
 
 	return &Position{
 		lock:    &sync.Mutex{},
-		turnIdx: 0,
+		turnIdx: -1,
 		num:     num,
 		master:  master,
 		members: []*api.Player{master},
@@ -56,6 +56,10 @@ func (pos *Position) move(who int) {
 
 func (pos *Position) Check(who int) bool {
 	return pos.turnIdx == who
+}
+
+func (pos *Position) TurnIdx() int {
+	return pos.turnIdx
 }
 
 // Join 就坐

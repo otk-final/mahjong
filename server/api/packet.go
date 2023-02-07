@@ -26,14 +26,17 @@ type WebPacket[T any] struct {
 }
 
 type TakePayload struct {
-	Who   int `json:"who"`
-	Round int `json:"round"`
-	Tile  int `json:"take"`
+	Who      int `json:"who"`
+	Round    int `json:"round"`
+	Tile     int `json:"tile"`
+	Remained int `json:"remained"`
 }
+
 type PutPayload struct {
 	Who   int `json:"who"`
 	Round int `json:"round"`
-	Tile  int `json:"put"`
+	Tile  int `json:"tile"`
+	AckId int `json:"ackId"`
 }
 
 type RacePayload struct {
@@ -61,7 +64,7 @@ type AckPayload struct {
 
 type TurnPayload struct {
 	Who      int `json:"who"`
-	Duration int `json:"duration"`
+	Interval int `json:"interval"`
 }
 
 type JoinPayload struct {
@@ -69,10 +72,11 @@ type JoinPayload struct {
 	Round     int     `json:"round"`
 }
 
-type BeginPayload struct {
-	TurnIdx  int            `json:"turnIdx"`
-	Remained int            `json:"remained"`
-	Tiles    []*PlayerTiles `json:"tiles"`
+type GamePayload struct {
+	TurnIdx      int            `json:"turnIdx"`
+	TurnInterval int            `json:"turnInterval"`
+	Remained     int            `json:"remained"`
+	Tiles        []*PlayerTiles `json:"tiles"`
 }
 
 func Packet[T any](code WebEvent, name string, event T) *WebPacket[T] {

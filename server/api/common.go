@@ -21,11 +21,15 @@ var RaceNames = map[RaceType]string{
 	LaiRace:  "癞",
 	CaoRace:  "朝",
 	GuiRace:  "鬼",
+
+	PassRace: "过",
+	PutRace:  "出",
+	TakeRace: "摸",
 }
 
 const (
 	// WinRace 胡
-	WinRace RaceType = iota + 1
+	WinRace RaceType = iota + 200
 	// DDDRace 碰
 	DDDRace
 	// ABCRace 吃
@@ -38,4 +42,10 @@ const (
 	CaoRace
 	// GuiRace 鬼
 	GuiRace
+	// PassRace 过
+	PassRace RaceType = 0
+	// PutRace 出
+	PutRace RaceType = 1
+	// TakeRace 摸
+	TakeRace RaceType = 2
 )

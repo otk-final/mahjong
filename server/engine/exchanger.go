@@ -6,8 +6,6 @@ import (
 )
 
 type Exchanger struct {
-	//超时时间
-	delay  int
 	pos    *Position
 	takeCh chan *api.TakePayload
 	putCh  chan *api.PutPayload
@@ -20,7 +18,7 @@ type NotifyHandle interface {
 	// Take 摸牌
 	Take(event *api.TakePayload)
 	// Put 出牌
-	Put(ackId int, event *api.PutPayload)
+	Put(event *api.PutPayload)
 	// Race 抢占
 	Race(event *api.RacePayload)
 	// Win 胡牌
@@ -28,7 +26,7 @@ type NotifyHandle interface {
 	// Ack 回执确认
 	Ack(event *api.AckPayload)
 	// Turn 轮转
-	Turn(who int, duration int, ok bool)
+	Turn(who int, interval int, ok bool)
 	//Quit 退出
 	Quit(ok bool)
 }
@@ -55,9 +53,8 @@ func (aq *ackQueue) ready(who int, ackId int) bool {
 	return aq.ackInit == 0
 }
 
-func NewExchanger(delay int) *Exchanger {
+func NewExchanger() *Exchanger {
 	return &Exchanger{
-		delay:  delay,
 		takeCh: make(chan *api.TakePayload, 0),
 		putCh:  make(chan *api.PutPayload, 0),
 		raceCh: make(chan *api.RacePayload, 0),
@@ -66,9 +63,9 @@ func NewExchanger(delay int) *Exchanger {
 	}
 }
 
-func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
+func (exc *Exchanger) Run(handler NotifyHandle, pos *Position, interval int) {
 
-	delayDuration := time.Duration(exc.delay) * time.Second
+	delayDuration := time.Duration(interval) * time.Second
 	//计时器
 	countdown := time.NewTicker(delayDuration)
 
@@ -104,9 +101,9 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			handler.Take(t)
 		case p := <-exc.putCh:
 			//每当出一张牌，均需等待其他玩家确认或者抢占
-			ackId := aq.ackId()
+			p.AckId = aq.ackId()
 			//出牌事件
-			handler.Put(ackId, p)
+			handler.Put(p)
 		case r := <-exc.raceCh:
 			//抢占 碰，杠，吃，... 设置当前回合
 			pos.move(r.Who)
@@ -142,7 +139,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			if aq.ready(a.Who, a.AckId) {
 				//正常轮转下家
 				who := pos.next()
-				handler.Turn(who, exc.delay, true)
+				handler.Turn(who, interval, true)
 			}
 		case <-countdown.C:
 			//并清除待ack队列
@@ -150,7 +147,7 @@ func (exc *Exchanger) Run(handler NotifyHandle, pos *Position) {
 			//超时，玩家无任何动作
 			who := pos.next()
 			//非正常轮转下家
-			handler.Turn(who, exc.delay, false)
+			handler.Turn(who, interval, false)
 		}
 	}
 }

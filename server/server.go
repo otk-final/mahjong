@@ -37,7 +37,7 @@ func Apis() http.Handler {
 	play.Path("/race").HandlerFunc(wrap.NewWrapper(race).Func())
 	play.Path("/race-pre").HandlerFunc(wrap.NewWrapper(racePre).Func())
 	play.Path("/win").HandlerFunc(wrap.NewWrapper(win).Func())
-	play.Path("/skip").HandlerFunc(wrap.NewWrapper(skip).Func())
+	play.Path("/ignore").HandlerFunc(wrap.NewWrapper(ignore).Func())
 
 	//websocket链接
 	muxRouter.Handle("/ws/{RoomId}", wsRoute())

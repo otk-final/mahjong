@@ -92,9 +92,11 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		Broadcast(rx, api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member, Round: 0}))
 	}
 
+	//判定游戏是否开始
 	return &api.RoomInf{
 		RoomId:  body.RoomId,
 		Own:     member,
+		Begin:   pos.TurnIdx() != -1,
 		Players: pos.Joined(),
 		Game:    gc,
 		Payment: pc,

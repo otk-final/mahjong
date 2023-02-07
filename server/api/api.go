@@ -53,17 +53,22 @@ type RoomInf struct {
 	RoomId  string            `json:"roomId"`
 	Own     *Player           `json:"own"`
 	Players []*Player         `json:"players"`
+	Begin   bool              `json:"begin"`
 	Game    *GameConfigure    `json:"game"`
 	Payment *PaymentConfigure `json:"payment"`
 }
 
-type GameStart struct {
+type GameParameter struct {
 	RoomId string `json:"roomId"`
 }
 
 type TakeParameter struct {
 	RoomId    string `json:"roomId"`
 	Direction int    `json:"direction"`
+}
+type TakeResult struct {
+	Tile     int `json:"tile"`
+	Remained int `json:"remained"`
 }
 
 type PutParameter struct {
@@ -84,10 +89,18 @@ type AckParameter struct {
 type RacePreview struct {
 	RoomId string `json:"roomId"`
 	Round  int    `json:"round"`
+	AckId  int    `json:"ackId"`
+	Tile   int    `json:"tile"`
+	Who    int    `json:"who"`
+}
+
+type UsableRaceItem struct {
+	RaceType RaceType   `json:"raceType"`
+	Tiles    []mj.Cards `json:"tiles"`
 }
 
 type RaceEffects struct {
-	Effect map[RaceType][]mj.Cards
+	Usable []*UsableRaceItem `json:"usable"`
 }
 
 type RacePost struct {
@@ -95,16 +108,13 @@ type RacePost struct {
 	Direction int    `json:"direction"` //摸牌方向（首，尾）
 }
 
-type GamePlayerQuery struct {
+type GameQuery struct {
 	RoomId string `json:"roomId"`
-	Idx    int    `json:"idx"`
 }
 
-type GamePlayerInf struct {
-	RoomId  string         `json:"roomId"`
-	Idx     int            `json:"idx"`
-	Tiles   *PlayerTiles   `json:"tiles"`
-	Profits *PlayerProfits `json:"profits"`
+type GameInf struct {
+	RoomId string `json:"roomId"`
+	GamePayload
 }
 
 // PlayerTiles 玩家牌库

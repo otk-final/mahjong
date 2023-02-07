@@ -11,8 +11,10 @@ import (
 	"net/http"
 )
 
+const turnInterval = 30
+
 // 开始游戏
-func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.NoResp, error) {
+func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.NoResp, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -21,6 +23,11 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	pos, err := store.GetPosition(body.RoomId)
 	if err != nil {
 		return nil, err
+	}
+
+	//已开始
+	if pos.TurnIdx() != -1 {
+		return api.Empty, nil
 	}
 
 	//校验用户信息，是否为庄家
@@ -47,20 +54,20 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 	}
 
 	//开启计时器
-	exchanger := engine.NewExchanger(30)
-	go exchanger.Run(notifyHandler, pos)
+	exchanger := engine.NewExchanger()
+	go exchanger.Run(notifyHandler, pos, turnInterval)
 
 	//注册缓存
 	store.RegisterRoundCtx(body.RoomId, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
-	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.BeginPayload] {
-
+	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.GamePayload] {
 		//从庄家开始
-		startPayload := api.BeginPayload{
-			TurnIdx:  0,
-			Remained: roundCtxOps.Remained(),
-			Tiles:    make([]*api.PlayerTiles, 0),
+		startPayload := api.GamePayload{
+			TurnIdx:      0,
+			TurnInterval: turnInterval,
+			Remained:     roundCtxOps.Remained(),
+			Tiles:        make([]*api.PlayerTiles, 0),
 		}
 		currentIdx := player.Idx
 		for _, user := range startDispatcher.members {
@@ -73,31 +80,35 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameStart) (*api.No
 }
 
 //查询玩家牌库
-func load(w http.ResponseWriter, r *http.Request, body *api.GamePlayerQuery) (*api.GamePlayerInf, error) {
+func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.GameInf, error) {
 	//用户信息
 	header := wrap.GetHeader(r)
 
 	//查询上下文
-	ctx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
+	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
 	if err != nil {
 		return nil, err
 	}
+	own, _ := roundCtx.Player(header.UserId)
 
-	//查询基础牌信息
-	tiles := ctx.Handler.LoadTiles(body.Idx)
-	profits := ctx.Handler.LoadProfits(body.Idx)
+	roundCtxOps := roundCtx.Handler
+	joined := roundCtx.Position.Joined()
 
-	//查询玩家信息
-	//member, _ := ctx.Position.Index(header.UserId)
-	//isOwn := strings.EqualFold(member.UId, header.UserId)
+	userTiles := make([]*api.PlayerTiles, 0)
+	for _, user := range joined {
+		//非自己的牌，查询是否选择明牌
+		tiles := roundCtxOps.LoadTiles(user.Idx).Copy(own.Idx == user.Idx)
+		userTiles = append(userTiles, tiles)
+	}
 
-	//TODO 非自己的牌，查询是否选择明牌
-
-	return &api.GamePlayerInf{
-		RoomId:  body.RoomId,
-		Idx:     body.Idx,
-		Tiles:   tiles,
-		Profits: profits,
+	return &api.GameInf{
+		GamePayload: api.GamePayload{
+			TurnIdx:      roundCtx.Position.TurnIdx(),
+			TurnInterval: turnInterval,
+			Remained:     roundCtxOps.Remained(),
+			Tiles:        userTiles,
+		},
+		RoomId: body.RoomId,
 	}, nil
 }
 
@@ -116,7 +127,7 @@ func (handler *BroadcastHandler) Take(event *api.TakePayload) {
 	Broadcast(handler.dispatcher, api.Packet(api.TakeEvent, "摸牌", event))
 }
 
-func (handler *BroadcastHandler) Put(ackId int, event *api.PutPayload) {
+func (handler *BroadcastHandler) Put(event *api.PutPayload) {
 	log.Printf("广播：put\n")
 	Broadcast(handler.dispatcher, api.Packet(api.PutEvent, "打牌", event))
 }
@@ -137,9 +148,9 @@ func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
 	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "待确认", event))
 }
 
-func (handler *BroadcastHandler) Turn(who int, duration int, ok bool) {
+func (handler *BroadcastHandler) Turn(who int, interval int, ok bool) {
 	log.Printf("广播：turn %d\n", who)
-	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Duration: duration}))
+	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Interval: interval}))
 }
 
 func (handler *BroadcastHandler) Quit(ok bool) {
