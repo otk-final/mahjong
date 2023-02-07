@@ -58,8 +58,8 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 	return ctxOps
 }
 
-func (bp *BaseProvider) Finish() bool {
-	return false
+func (bp *BaseProvider) Finish() {
+
 }
 
 func (bp *BaseProvider) Quit() {
@@ -85,11 +85,11 @@ type abcEvaluation struct {
 
 func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 	//只能吃上家出的牌
-	if raceIdx-whoIdx != 1 || (raceIdx == (ctx.Position.Len()-1) && whoIdx != 0) {
+	if raceIdx-whoIdx != 1 || raceIdx-whoIdx != ctx.Pos().Num()*-1 {
 		return false, nil
 	}
 
-	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
+	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
 
 	effects := make([]mj.Cards, 0)
 	u1, u2 := tile+1, tile+2
@@ -113,23 +113,20 @@ type dddEvaluation struct {
 }
 
 func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
-	//只剩一张
-	if len(hands) < 1 {
-		return false, nil
-	}
-	//不能碰自己打的牌
-	if raceIdx == whoIdx {
+	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands
+	//只剩一张 且 不能碰自己打的牌
+	if len(hands) <= 1 || raceIdx == whoIdx {
 		return false, nil
 	}
 
+	//正序后，查询是否存在
 	sort.Ints(hands)
 	tIdx := hands.Index(tile)
 	if tIdx == -1 {
 		return false, nil
 	}
 	//共2张牌一样
-	ok := hands[tIdx+1] == tile
+	ok := len(hands) > tIdx+1 && hands[tIdx+1] == tile
 	if ok {
 		return true, []mj.Cards{{tile, tile}}
 	}
@@ -143,7 +140,7 @@ type eeeeEvaluation struct {
 func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
 
 	//自杠 从已判断中的牌检索
-	tileCtx := ctx.Handler.LoadTiles(raceIdx)
+	tileCtx := ctx.HandlerCtx().GetTiles(raceIdx)
 	if raceIdx == whoIdx {
 		//检索 碰过的
 		races := tileCtx.Races
@@ -156,18 +153,18 @@ func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int
 		return false, nil
 	}
 	//杠别人 从手牌中检索
-	temp := tileCtx.Hands
-	if len(temp) < 3 {
+	hands := tileCtx.Hands
+	if len(hands) < 3 {
 		return false, nil
 	}
 
-	sort.Ints(temp)
-	tIdx := temp.Index(tile)
+	sort.Ints(hands)
+	tIdx := hands.Index(tile)
 	if tIdx == -1 {
 		return false, nil
 	}
 	//共3张牌一样
-	ok := temp[tIdx+1] == tile && temp[tIdx+2] == tile
+	ok := len(hands) > tIdx+2 && hands[tIdx+1] == tile && hands[tIdx+2] == tile
 	if ok {
 		return true, []mj.Cards{{tile, tile, tile}}
 	}
@@ -179,7 +176,7 @@ type winEvaluation struct {
 }
 
 func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
+	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
 	hands = append(hands, tile)
 
 	//只有两张,判断是否为将牌

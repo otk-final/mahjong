@@ -64,6 +64,7 @@ type GameParameter struct {
 
 type TakeParameter struct {
 	RoomId    string `json:"roomId"`
+	Round     int    `json:"round"`
 	Direction int    `json:"direction"`
 }
 type TakeResult struct {
@@ -75,6 +76,11 @@ type PutParameter struct {
 	RoomId string `json:"roomId"`
 	PutPayload
 }
+type PutResult struct {
+	RoomId string   `json:"roomId"`
+	Tile   int      `json:"tile"`
+	Hands  mj.Cards `json:"hands"`
+}
 
 type RaceParameter struct {
 	RoomId string `json:"roomId"`
@@ -83,6 +89,7 @@ type RaceParameter struct {
 
 type AckParameter struct {
 	RoomId string `json:"roomId"`
+	Round  int    `json:"round"`
 	AckPayload
 }
 
@@ -103,9 +110,11 @@ type RaceEffects struct {
 	Usable []*UsableRaceItem `json:"usable"`
 }
 
-type RacePost struct {
-	Action    string `json:"action"`    //摸牌，或出牌
-	Direction int    `json:"direction"` //摸牌方向（首，尾）
+type RaceResult struct {
+	Action    string   `json:"action"`    //摸牌，或出牌
+	Direction int      `json:"direction"` //摸牌方向（首，尾）
+	Hands     mj.Cards `json:"hands"`
+	Tiles     mj.Cards `json:"tiles"`
 }
 
 type GameQuery struct {
@@ -127,7 +136,7 @@ type PlayerTiles struct {
 	LastedPut  int        `json:"lastedPut"`
 }
 
-func (tile *PlayerTiles) Copy(explicit bool) *PlayerTiles {
+func (tile *PlayerTiles) ExplicitCopy(explicit bool) *PlayerTiles {
 
 	tempRaces := make([]mj.Cards, 0)
 	for _, comb := range tile.Races {
@@ -137,7 +146,7 @@ func (tile *PlayerTiles) Copy(explicit bool) *PlayerTiles {
 		Idx:        tile.Idx,
 		Hands:      tile.Hands.Clone(),
 		Races:      tempRaces,
-		Outs:       tile.Hands.Clone(),
+		Outs:       tile.Outs.Clone(),
 		LastedTake: tile.LastedTake,
 		LastedPut:  tile.LastedPut,
 	}
@@ -149,7 +158,6 @@ func (tile *PlayerTiles) Copy(explicit bool) *PlayerTiles {
 	temp.Hands = make(mj.Cards, len(temp.Hands))
 	temp.LastedTake = 0
 	temp.LastedPut = 0
-
 	return temp
 }
 

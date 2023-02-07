@@ -9,14 +9,32 @@ import (
 )
 
 type RoundCtx struct {
-	Round     int
-	Position  *Position
-	Exchanger *Exchanger
-	Handler   RoundOpsCtx
+	round      int
+	position   *Position
+	exchanger  *Exchanger
+	handlerCtx RoundOpsCtx
 }
 
+func NewRoundCtx(round int, pos *Position, exchanger *Exchanger, handlerCtx RoundOpsCtx) *RoundCtx {
+	return &RoundCtx{
+		round:      round,
+		position:   pos,
+		exchanger:  exchanger,
+		handlerCtx: handlerCtx,
+	}
+}
+
+func (ctx *RoundCtx) Pos() *Position {
+	return ctx.position
+}
+func (ctx *RoundCtx) Exchange() *Exchanger {
+	return ctx.exchanger
+}
+func (ctx *RoundCtx) HandlerCtx() RoundOpsCtx {
+	return ctx.handlerCtx
+}
 func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
-	return ctx.Position.Index(acctId)
+	return ctx.position.Index(acctId)
 }
 
 // RoundOpsCtx 当局
@@ -24,9 +42,9 @@ type RoundOpsCtx interface {
 	// WithConfig 当前配置
 	WithConfig() (*api.GameConfigure, *api.PaymentConfigure)
 
-	LoadTiles(pIdx int) *api.PlayerTiles
+	GetTiles(pIdx int) *api.PlayerTiles
 
-	LoadProfits(pIdx int) *api.PlayerProfits
+	GetProfits(pIdx int) *api.PlayerProfits
 
 	AddTake(pIdx int, tile int)
 

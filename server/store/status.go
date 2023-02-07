@@ -24,19 +24,6 @@ func LoadRoundCtx(roomId string, acctId string) (*engine.RoundCtx, error) {
 }
 
 func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundOpsCtx) *engine.RoundCtx {
-
-	v, ok := roundCtxMap.Load(roomId)
-	var ctx *engine.RoundCtx
-	if ok {
-		ctx = v.(*engine.RoundCtx)
-		ctx.Round++
-	} else {
-		ctx = &engine.RoundCtx{Round: 1}
-	}
-
-	ctx.Position = pos
-	ctx.Handler = handler
-	ctx.Exchanger = exchanger
-	roundCtxMap.Store(roomId, ctx)
-	return ctx
+	v, _ := roundCtxMap.LoadOrStore(roomId, engine.NewRoundCtx(0, pos, exchanger, handler))
+	return v.(*engine.RoundCtx)
 }

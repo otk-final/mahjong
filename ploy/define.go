@@ -15,7 +15,7 @@ type GameDefine interface {
 	// Renew 从上下文中恢复
 	Renew(ctx *engine.RoundCtx)
 	// Finish 结束
-	Finish() bool
+	Finish()
 	// Quit 退出
 	Quit()
 }
@@ -57,11 +57,11 @@ func (b *BaseRoundCtxHandler) WithConfig() (*api.GameConfigure, *api.PaymentConf
 	return b.gc, b.pc
 }
 
-func (b *BaseRoundCtxHandler) LoadTiles(pIdx int) *api.PlayerTiles {
+func (b *BaseRoundCtxHandler) GetTiles(pIdx int) *api.PlayerTiles {
 	return b.tiles[pIdx]
 }
 
-func (b *BaseRoundCtxHandler) LoadProfits(pIdx int) *api.PlayerProfits {
+func (b *BaseRoundCtxHandler) GetProfits(pIdx int) *api.PlayerProfits {
 	return b.profits[pIdx]
 }
 

@@ -23,7 +23,7 @@ func newLaiProvider() GameDefine {
 }
 
 func (lp *LaiProvider) Renew(ctx *engine.RoundCtx) {
-	ctxHandler := ctx.Handler.(*BaseRoundCtxHandler)
+	ctxHandler := ctx.HandlerCtx().(*BaseRoundCtxHandler)
 
 	//配置参数
 	lp.canABC = ctxHandler.custom["canAbc"].(bool)
@@ -128,7 +128,7 @@ func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (b
 		return false, nil
 	}
 	//是否存在
-	exist := ctx.Handler.LoadTiles(raceIdx).Hands.Index(tile)
+	exist := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Index(tile)
 	if exist != -1 {
 		return false, nil
 	}
@@ -173,7 +173,7 @@ func (eval *winWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (b
 		return false, nil
 	}
 
-	hands := ctx.Handler.LoadTiles(raceIdx).Hands.Clone()
+	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
 	hands = append(hands, tile)
 
 	//判断手上的癞子

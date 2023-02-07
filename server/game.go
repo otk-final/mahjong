@@ -71,7 +71,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 		}
 		currentIdx := player.Idx
 		for _, user := range startDispatcher.members {
-			tiles := roundCtxOps.LoadTiles(user.Idx).Copy(currentIdx == user.Idx)
+			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
 			startPayload.Tiles = append(startPayload.Tiles, tiles)
 		}
 		return api.Packet(api.BeginEvent, "开始", startPayload)
@@ -91,19 +91,19 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	}
 	own, _ := roundCtx.Player(header.UserId)
 
-	roundCtxOps := roundCtx.Handler
-	joined := roundCtx.Position.Joined()
+	roundCtxOps := roundCtx.HandlerCtx()
+	joined := roundCtx.Pos().Joined()
 
 	userTiles := make([]*api.PlayerTiles, 0)
 	for _, user := range joined {
 		//非自己的牌，查询是否选择明牌
-		tiles := roundCtxOps.LoadTiles(user.Idx).Copy(own.Idx == user.Idx)
+		tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(own.Idx == user.Idx)
 		userTiles = append(userTiles, tiles)
 	}
 
 	return &api.GameInf{
 		GamePayload: api.GamePayload{
-			TurnIdx:      roundCtx.Position.TurnIdx(),
+			TurnIdx:      roundCtx.Pos().TurnIdx(),
 			TurnInterval: turnInterval,
 			Remained:     roundCtxOps.Remained(),
 			Tiles:        userTiles,
@@ -137,10 +137,10 @@ func (handler *BroadcastHandler) Race(event *api.RacePayload) {
 	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event))
 }
 
-func (handler *BroadcastHandler) Win(event *api.WinPayload) bool {
+func (handler *BroadcastHandler) Win(event *api.RacePayload) {
 	log.Printf("广播：win\n")
 	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, "胡牌", event))
-	return handler.provider.Finish()
+	handler.provider.Finish()
 }
 
 func (handler *BroadcastHandler) Ack(event *api.AckPayload) {

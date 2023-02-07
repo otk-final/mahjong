@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/google/uuid"
+	"mahjong/mj"
 )
 
 type WebEvent int
@@ -40,20 +41,12 @@ type PutPayload struct {
 }
 
 type RacePayload struct {
-	Who       int      `json:"who"`
-	Other     int      `json:"other"`
-	Round     int      `json:"round"`
-	RaceType  RaceType `json:"raceType"`
-	HandTiles []int    `json:"handTiles"`
-	Tile      int      `json:"tile"`
-}
-
-type WinPayload struct {
-	Who       int   `json:"who"`
-	Other     int   `json:"other"`
-	Round     int   `json:"round"`
-	HandTiles []int `json:"handTiles"`
-	Tile      int   `json:"tile"`
+	RaceType RaceType `json:"raceType"`
+	Who      int      `json:"who"`
+	Target   int      `json:"target"`
+	Round    int      `json:"round"`
+	Tiles    mj.Cards `json:"tiles"`
+	Tile     int      `json:"tile"`
 }
 
 type AckPayload struct {
