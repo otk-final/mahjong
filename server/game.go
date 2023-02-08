@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"log"
 	"mahjong/ploy"
 	"mahjong/server/api"
 	"mahjong/server/engine"
@@ -63,15 +64,15 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.GamePayload] {
 		//从庄家开始
 		startPayload := api.GamePayload{
-			TurnIdx:      0,
-			TurnInterval: turnInterval,
-			Remained:     roundCtxOps.Remained(),
-			Tiles:        make([]*api.PlayerTiles, 0),
+			TurnIdx:  0,
+			Interval: turnInterval,
+			Remained: roundCtxOps.Remained(),
+			Players:  make([]*api.PlayerTiles, 0),
 		}
 		currentIdx := player.Idx
 		for _, user := range startDispatcher.members {
 			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
-			startPayload.Tiles = append(startPayload.Tiles, tiles)
+			startPayload.Players = append(startPayload.Players, tiles)
 		}
 		return api.Packet(api.BeginEvent, "开始", startPayload)
 	})
@@ -100,27 +101,32 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		userTiles = append(userTiles, tiles)
 	}
 
-	usableRaces := make([]*api.UsableRaceItem, 0)
+	usableRaces := make([]*api.RaceOption, 0)
+
+	// 还原牌局
+
 	//当前回合
 	turnIdx := roundCtx.Pos().TurnIdx()
 
-	//最后一次事件
+	//最后一次事件 ? 可能是自己，也可能是别人（摸牌，出牌，判定）
 	recentAction := roundCtx.HandlerCtx().RecentAction()
 	recentIdx := roundCtx.HandlerCtx().RecentIdx()
 
 	//本回合 已摸牌，触发判定
-	ownCheck := turnIdx == own.Idx && recentAction == engine.RecentTake
+	ownCheck := recentIdx == own.Idx && recentAction == engine.RecentTake
 	//非本回合，已出牌，触发判定
-	eachCheck := turnIdx != own.Idx && recentAction == engine.RecentPut
+	eachCheck := recentIdx != own.Idx && recentAction == engine.RecentPut
 	if ownCheck || eachCheck {
+
 		//目标牌
 		recenter := roundCtx.HandlerCtx().Recenter(recentIdx)
 		raceTile := -1
-		if recentAction == engine.RecentTake {
+		if ownCheck {
 			raceTile = recenter.Take()
 		} else {
 			raceTile = recenter.Put()
 		}
+
 		//判定
 		raceQuery := &api.RacePreview{
 			RoomId: body.RoomId,
@@ -130,18 +136,23 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 			Tile:   raceTile,
 		}
 		usableRaces, err = doRacePre(roundCtx, own, raceQuery)
+	} else {
+		//如果是本回合，兜底显示出牌入口
+		if turnIdx == own.Idx {
+			usableRaces = append(usableRaces, &api.RaceOption{RaceType: api.PassRace})
+		}
 	}
 
 	return &api.GameInf{
-		GamePayload: api.GamePayload{
-			TurnIdx:      turnIdx,
-			TurnInterval: roundCtx.Exchange().TurnTime(),
-			RecentIdx:    recentIdx,
-			Remained:     roundCtxOps.Remained(),
-			Tiles:        userTiles,
+		GamePayload: &api.GamePayload{
+			TurnIdx:   turnIdx,
+			Interval:  roundCtx.Exchange().TurnTime(),
+			RecentIdx: recentIdx,
+			Remained:  roundCtxOps.Remained(),
+			Players:   userTiles,
 		},
-		Usable: usableRaces,
-		RoomId: body.RoomId,
+		Options: usableRaces,
+		RoomId:  body.RoomId,
 	}, nil
 }
 
@@ -176,6 +187,7 @@ func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
 }
 
 func (handler *BroadcastHandler) Turn(who int, interval int, ok bool) {
+	log.Printf("当前回合：%d\n", who)
 	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Interval: interval}))
 }
 

@@ -47,6 +47,7 @@ type RacePayload struct {
 	Round    int      `json:"round"`
 	Tiles    mj.Cards `json:"tiles"`
 	Tile     int      `json:"tile"`
+	Interval int      `json:"interval"`
 }
 
 type AckPayload struct {
@@ -66,11 +67,11 @@ type JoinPayload struct {
 }
 
 type GamePayload struct {
-	TurnIdx      int            `json:"turnIdx"`
-	TurnInterval int            `json:"turnInterval"`
-	RecentIdx    int            `json:"recentIdx"`
-	Remained     int            `json:"remained"`
-	Tiles        []*PlayerTiles `json:"tiles"`
+	TurnIdx   int            `json:"turnIdx"`
+	Interval  int            `json:"interval"`
+	RecentIdx int            `json:"recentIdx"`
+	Remained  int            `json:"remained"`
+	Players   []*PlayerTiles `json:"players"`
 }
 
 func Packet[T any](code WebEvent, name string, event T) *WebPacket[T] {

@@ -5,6 +5,7 @@ import (
 	"mahjong/server/api"
 	"mahjong/server/engine"
 	"sort"
+	"sync"
 )
 
 // BaseProvider 标准
@@ -37,6 +38,7 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 
 	//添加到上下文
 	ctxOps := &BaseRoundCtxHandler{
+		lock:    sync.Mutex{},
 		table:   tb,
 		tiles:   make(map[int]*api.PlayerTiles, players),
 		profits: make(map[int]*api.PlayerProfits, players),
@@ -50,12 +52,10 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 	//保存牌库 初始化
 	for k, v := range members {
 		ctxOps.tiles[k] = &api.PlayerTiles{
-			Idx:        k,
-			Hands:      v,
-			Races:      make([]mj.Cards, 0),
-			Outs:       make(mj.Cards, 0),
-			LastedTake: 0,
-			LastedPut:  0,
+			Idx:   k,
+			Hands: v,
+			Races: make([]mj.Cards, 0),
+			Outs:  make(mj.Cards, 0),
 		}
 		ctxOps.recenter[k] = &BaseRecenter{idx: k, put: 0, take: 0, race: nil}
 	}
@@ -96,51 +96,41 @@ func isUpperIdx(mineIdx, whoIdx, members int) bool {
 	return false
 }
 
-func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	//只能吃上家出的牌
 	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) {
 		return false, nil
 	}
-
-	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
-
 	effects := make([]mj.Cards, 0)
-	u1, u2 := tile+1, tile+2
-
-	if hands.Index(u1) != -1 && hands.Index(u2) != -1 {
-		effects = append(effects, mj.Cards{tile, u1, u2})
+	options := [][]int{{tile + 1, tile + 2}, {tile - 2, tile - 1}, {tile - 1, tile + 1}}
+	for _, t := range options {
+		if tiles.Index(t[0]) == -1 || tiles.Index(t[1]) == -1 {
+			continue
+		}
+		effects = append(effects, mj.Cards{t[0], t[1]})
 	}
-
-	l1, l2 := tile-2, tile-1
-	if hands.Index(l1) != -1 && hands.Index(l2) != -1 {
-		effects = append(effects, mj.Cards{l1, l2, tile})
-	}
-	if len(effects) > 0 {
-		return true, effects
-	}
-	return false, nil
+	return len(effects) > 0, effects
 }
 
 // 碰
 type dddEvaluation struct {
 }
 
-func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
-	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands
+func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//只剩一张 且 不能碰自己打的牌
-	if len(hands) <= 1 || raceIdx == whoIdx {
+	if len(tiles) <= 1 || raceIdx == whoIdx {
 		return false, nil
 	}
 
 	//正序后，查询是否存在
-	sort.Ints(hands)
-	tIdx := hands.Index(tile)
+	sort.Ints(tiles)
+	tIdx := tiles.Index(tile)
 	if tIdx == -1 {
 		return false, nil
 	}
 	//共2张牌一样
-	ok := len(hands) > tIdx+1 && hands[tIdx+1] == tile
+	ok := len(tiles) > tIdx+1 && tiles[tIdx+1] == tile
 	if ok {
 		return true, []mj.Cards{{tile, tile}}
 	}
@@ -151,7 +141,7 @@ func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int)
 type eeeeEvaluation struct {
 }
 
-func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	//自杠 从已判断中的牌检索
 	tileCtx := ctx.HandlerCtx().GetTiles(raceIdx)
@@ -167,18 +157,17 @@ func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int
 		return false, nil
 	}
 	//杠别人 从手牌中检索
-	hands := tileCtx.Hands
-	if len(hands) < 3 {
+	if len(tiles) < 3 {
 		return false, nil
 	}
 
-	sort.Ints(hands)
-	tIdx := hands.Index(tile)
+	sort.Ints(tiles)
+	tIdx := tiles.Index(tile)
 	if tIdx == -1 {
 		return false, nil
 	}
 	//共3张牌一样
-	ok := len(hands) > tIdx+2 && hands[tIdx+1] == tile && hands[tIdx+2] == tile
+	ok := len(tiles) > tIdx+2 && tiles[tIdx+1] == tile && tiles[tIdx+2] == tile
 	if ok {
 		return true, []mj.Cards{{tile, tile, tile}}
 	}
@@ -189,7 +178,7 @@ func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int
 type winEvaluation struct {
 }
 
-func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
 	hands = append(hands, tile)
 
@@ -214,7 +203,7 @@ func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int)
 type tingEvaluation struct {
 }
 
-func (eval *tingEvaluation) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *tingEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//TODO implement me
 	panic("implement me")
 }

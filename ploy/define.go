@@ -4,6 +4,8 @@ import (
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/server/engine"
+	"sort"
+	"sync"
 )
 
 // GameDefine 游戏规则
@@ -23,7 +25,7 @@ type GameDefine interface {
 // RaceEvaluate 碰，吃，杠，胡...评估
 type RaceEvaluate interface {
 	// Eval 可行判断
-	Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards)
+	Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards)
 }
 
 func NewProvider(mode string) GameDefine {
@@ -52,6 +54,7 @@ func BuildProvider(roundCtx *engine.RoundCtx) GameDefine {
 }
 
 type BaseRoundCtxHandler struct {
+	lock         sync.Mutex
 	gc           *api.GameConfigure
 	pc           *api.PaymentConfigure
 	table        *engine.Table
@@ -86,9 +89,11 @@ func (b *BaseRoundCtxHandler) withOuts(pIdx int) mj.Cards {
 }
 
 func (b *BaseRoundCtxHandler) AddTake(pIdx int, tile int) {
+	defer b.lock.Unlock()
+	b.lock.Lock()
+
 	own := b.tiles[pIdx]
 
-	own.LastedTake = tile
 	own.Hands = append(own.Hands, tile)
 
 	b.recentIdx = pIdx
@@ -98,9 +103,10 @@ func (b *BaseRoundCtxHandler) AddTake(pIdx int, tile int) {
 }
 
 func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
+	defer b.lock.Unlock()
+	b.lock.Lock()
 
 	own := b.tiles[pIdx]
-	own.LastedPut = tile
 
 	//update hands
 	tIdx := own.Hands.Index(tile)
@@ -115,6 +121,9 @@ func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 }
 
 func (b *BaseRoundCtxHandler) AddRace(pIdx int, tileRaces *engine.TileRaces) {
+	defer b.lock.Unlock()
+	b.lock.Lock()
+
 	own := b.tiles[pIdx]
 	//移除
 	for _, t := range tileRaces.Tiles {
@@ -123,6 +132,7 @@ func (b *BaseRoundCtxHandler) AddRace(pIdx int, tileRaces *engine.TileRaces) {
 	}
 
 	race := append(tileRaces.Tiles, tileRaces.Tile)
+	sort.Ints(race)
 	own.Races = append(own.Races, race)
 
 	//移交

@@ -1,5 +1,7 @@
 package mj
 
+import "sort"
+
 // Library 牌库
 var Library = Cards{
 	//筒
@@ -151,4 +153,18 @@ func (c Cards) Clone() Cards {
 	dest := make(Cards, len(c))
 	copy(dest, c)
 	return dest
+}
+
+func (c Cards) Equal(dest Cards) bool {
+	if len(c) != len(dest) {
+		return false
+	}
+	sort.Ints(c)
+	sort.Ints(dest)
+	for i := 0; i < len(c); i++ {
+		if c[i] != dest[i] {
+			return false
+		}
+	}
+	return true
 }

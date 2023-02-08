@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"log"
 	"mahjong/server/api"
 	"time"
 )
@@ -93,6 +94,7 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 
 	//堵塞监听
 	for {
+		log.Println("aa")
 		select {
 		case t := <-exc.takeCh:
 			//从摸牌开始，开始倒计时
@@ -130,14 +132,15 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 			handler.Ack(a)
 			//就绪事件
 			if aq.ready(a.Who, a.AckId) {
+				//重置定时
+				cd.reset()
 				//正常轮转下家
 				who := pos.next()
 				handler.Turn(who, interval, true)
 			}
-		case <-cd.delay():
+		case <-cd.timer.C:
 			//并清除待ack队列
 			aq.reset()
-			cd.next()
 			//超时，玩家无任何动作
 			who := pos.next()
 			//非正常轮转下家
@@ -185,20 +188,17 @@ func newCountdown(second int) *countdown {
 func (c *countdown) reset() {
 	//下一次时间
 	c.nextTime = time.Now().Add(c.interval)
-	c.timer.Reset(c.interval)
+	ok := c.timer.Reset(c.interval)
+	log.Printf("reset time %v", ok)
 }
 
-func (c *countdown) next() {
+func (c *countdown) setNextTime() {
 	//下一次时间
 	c.nextTime = time.Now().Add(c.interval)
 }
 
 func (c countdown) remaining() int {
 	return int(c.nextTime.Sub(time.Now()).Seconds())
-}
-
-func (c *countdown) delay() <-chan time.Time {
-	return c.timer.C
 }
 
 func (c *countdown) stop() {

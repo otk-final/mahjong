@@ -87,11 +87,11 @@ type dddWithLai struct {
 	dddEvaluation
 }
 
-func (eval *dddWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *dddWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	if tile == eval.lai {
 		return false, nil
 	}
-	return eval.dddEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
+	return eval.dddEvaluation.Eval(ctx, raceIdx, tiles, whoIdx, tile)
 }
 
 type abcWithLai struct {
@@ -99,13 +99,13 @@ type abcWithLai struct {
 	abcEvaluation
 }
 
-func (eval *abcWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *abcWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能吃癞子
 	if tile == eval.lai {
 		return false, nil
 	}
 	//不能用含有癞子牌去吃
-	ok, effects := eval.abcEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
+	ok, effects := eval.abcEvaluation.Eval(ctx, raceIdx, tiles, whoIdx, tile)
 	if ok {
 		for i := 0; i < len(effects); i++ {
 			comb := effects[i]
@@ -122,13 +122,13 @@ type fixWithLai struct {
 	tile int
 }
 
-func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//只能自杠
 	if raceIdx != whoIdx || eval.tile != tile {
 		return false, nil
 	}
 	//是否存在
-	exist := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Index(tile)
+	exist := tiles.Index(tile)
 	if exist != -1 {
 		return false, nil
 	}
@@ -140,11 +140,11 @@ type eeeeWithLai struct {
 	eeeeEvaluation
 }
 
-func (eval *eeeeWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *eeeeWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	if tile == eval.lai {
 		return false, nil
 	}
-	return eval.eeeeEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
+	return eval.eeeeEvaluation.Eval(ctx, raceIdx, tiles, whoIdx, tile)
 }
 
 type winWithLai struct {
@@ -166,14 +166,14 @@ var LaiTiles = mj.Cards{
 	mj.W9, mj.L9, mj.T9,
 }
 
-func (eval *winWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (bool, []mj.Cards) {
+func (eval *winWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	// 只能自摸
 	if eval.canWin && (raceIdx != whoIdx) {
 		return false, nil
 	}
 
-	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
+	hands := tiles.Clone()
 	hands = append(hands, tile)
 
 	//判断手上的癞子
@@ -186,7 +186,7 @@ func (eval *winWithLai) Eval(ctx *engine.RoundCtx, raceIdx, whoIdx, tile int) (b
 
 	if laiCount == 0 {
 		//无癞子 按照标准牌型胡牌
-		return eval.winEvaluation.Eval(ctx, raceIdx, whoIdx, tile)
+		return eval.winEvaluation.Eval(ctx, raceIdx, tiles, whoIdx, tile)
 	}
 	//多癞子
 	ok, effect := eval.multiLaiCheck(hands)

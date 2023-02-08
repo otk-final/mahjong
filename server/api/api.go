@@ -69,30 +69,34 @@ type TakeParameter struct {
 	Direction int    `json:"direction"`
 }
 type TakeResult struct {
-	Tile     int               `json:"tile"`
-	Remained int               `json:"remained"`
-	Usable   []*UsableRaceItem `json:"usable"`
+	*PlayerTiles
+	Take     int           `json:"take"`
+	Remained int           `json:"remained"`
+	Options  []*RaceOption `json:"options"`
 }
-
 type PutParameter struct {
+	*PutPayload
 	RoomId string `json:"roomId"`
-	PutPayload
 }
 type PutResult struct {
-	RoomId string   `json:"roomId"`
-	Tile   int      `json:"tile"`
-	Hands  mj.Cards `json:"hands"`
+	*PlayerTiles
+	Put int `json:"put"`
 }
-
 type RaceParameter struct {
-	RoomId string `json:"roomId"`
-	RacePayload
+	RoomId   string   `json:"roomId"`
+	Round    int      `json:"round"`
+	RaceType RaceType `json:"raceType"`
+	Tiles    mj.Cards `json:"tiles"`
+}
+type RaceResult struct {
+	*PlayerTiles
+	NextTake int           `json:"nextTake"`
+	Options  []*RaceOption `json:"options"`
 }
 
-type AckParameter struct {
-	RoomId string `json:"roomId"`
-	Round  int    `json:"round"`
-	AckPayload
+type RaceOption struct {
+	RaceType RaceType   `json:"raceType"`
+	Tiles    []mj.Cards `json:"tiles"`
 }
 
 type RacePreview struct {
@@ -103,20 +107,14 @@ type RacePreview struct {
 	Tile   int    `json:"tile"`
 }
 
-type UsableRaceItem struct {
-	RaceType RaceType   `json:"raceType"`
-	Tiles    []mj.Cards `json:"tiles"`
-}
-
 type RaceEffects struct {
-	Usable []*UsableRaceItem `json:"usable"`
+	Options []*RaceOption `json:"options"`
 }
 
-type RaceResult struct {
-	Hands  mj.Cards          `json:"hands"`
-	Tiles  mj.Cards          `json:"tiles"`
-	Tile   int               `json:"tile"`
-	Usable []*UsableRaceItem `json:"usable"`
+type AckParameter struct {
+	*AckPayload
+	RoomId string `json:"roomId"`
+	Round  int    `json:"round"`
 }
 
 type GameQuery struct {
@@ -124,19 +122,17 @@ type GameQuery struct {
 }
 
 type GameInf struct {
-	GamePayload
-	RoomId string            `json:"roomId"`
-	Usable []*UsableRaceItem `json:"usable"`
+	*GamePayload
+	RoomId  string        `json:"roomId"`
+	Options []*RaceOption `json:"options"`
 }
 
 // PlayerTiles 玩家牌库
 type PlayerTiles struct {
-	Idx        int        `json:"idx"`
-	Hands      mj.Cards   `json:"hands"`
-	Races      []mj.Cards `json:"races"`
-	Outs       mj.Cards   `json:"outs"`
-	LastedTake int        `json:"lastedTake"`
-	LastedPut  int        `json:"lastedPut"`
+	Idx   int        `json:"idx"`
+	Hands mj.Cards   `json:"hands"`
+	Races []mj.Cards `json:"races"`
+	Outs  mj.Cards   `json:"outs"`
 }
 
 func (tile *PlayerTiles) ExplicitCopy(explicit bool) *PlayerTiles {
@@ -146,21 +142,17 @@ func (tile *PlayerTiles) ExplicitCopy(explicit bool) *PlayerTiles {
 		tempRaces = append(tempRaces, comb.Clone())
 	}
 	temp := &PlayerTiles{
-		Idx:        tile.Idx,
-		Hands:      tile.Hands.Clone(),
-		Races:      tempRaces,
-		Outs:       tile.Outs.Clone(),
-		LastedTake: tile.LastedTake,
-		LastedPut:  tile.LastedPut,
+		Idx:   tile.Idx,
+		Hands: tile.Hands.Clone(),
+		Races: tempRaces,
+		Outs:  tile.Outs.Clone(),
 	}
 	if explicit {
 		return temp
 	}
 
-	//屏蔽数据
+	//屏蔽手牌数据
 	temp.Hands = make(mj.Cards, len(temp.Hands))
-	temp.LastedTake = 0
-	temp.LastedPut = 0
 	return temp
 }
 
