@@ -62,7 +62,7 @@ func (pos *Position) TurnIdx() int {
 	return pos.turnIdx
 }
 
-func (pos *Position) LastedIdx() int {
+func (pos *Position) PreIdx() int {
 	pre := pos.turnIdx - 1
 	if pre < 0 {
 		return pos.num - 1

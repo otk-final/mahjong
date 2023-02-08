@@ -37,6 +37,12 @@ func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
 	return ctx.position.Index(acctId)
 }
 
+type TileRaces struct {
+	Tiles     mj.Cards
+	TargetIdx int
+	Tile      int
+}
+
 // RoundOpsCtx 当局
 type RoundOpsCtx interface {
 	Configure() (*api.GameConfigure, *api.PaymentConfigure)
@@ -49,13 +55,35 @@ type RoundOpsCtx interface {
 
 	AddPut(pIdx int, tile int)
 
-	AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int)
+	AddRace(pIdx int, target *TileRaces)
 
 	Forward(pIdx int) int
 
 	Backward(pIdx int) int
 
 	Remained() int
+
+	RecentAction() RecentAction
+
+	RecentIdx() int
+
+	Recenter(targetIdx int) RoundOpsRecent
+}
+
+type RecentAction int
+
+const (
+	RecentPut RecentAction = iota + 1
+	RecentTake
+	RecentRace
+)
+
+type RoundOpsRecent interface {
+	Idx() int
+	Put() int
+	Take() int
+	Race() *TileRaces
+	Action() RecentAction
 }
 
 type Table struct {

@@ -52,12 +52,15 @@ func BuildProvider(roundCtx *engine.RoundCtx) GameDefine {
 }
 
 type BaseRoundCtxHandler struct {
-	gc      *api.GameConfigure
-	pc      *api.PaymentConfigure
-	table   *engine.Table
-	tiles   map[int]*api.PlayerTiles
-	profits map[int]*api.PlayerProfits
-	custom  map[string]any
+	gc           *api.GameConfigure
+	pc           *api.PaymentConfigure
+	table        *engine.Table
+	tiles        map[int]*api.PlayerTiles
+	profits      map[int]*api.PlayerProfits
+	custom       map[string]any
+	recentAction engine.RecentAction //最近数据
+	recentIdx    int
+	recenter     map[int]*BaseRecenter
 }
 
 func (b *BaseRoundCtxHandler) Configure() (*api.GameConfigure, *api.PaymentConfigure) {
@@ -87,6 +90,11 @@ func (b *BaseRoundCtxHandler) AddTake(pIdx int, tile int) {
 
 	own.LastedTake = tile
 	own.Hands = append(own.Hands, tile)
+
+	b.recentIdx = pIdx
+	b.recentAction = engine.RecentTake
+	b.recenter[pIdx].action = engine.RecentTake
+	b.recenter[pIdx].take = tile
 }
 
 func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
@@ -98,16 +106,33 @@ func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 	tIdx := own.Hands.Index(tile)
 	own.Hands = own.Hands.Remove(tIdx)
 	own.Outs = append(own.Outs, tile)
+
+	b.recentIdx = pIdx
+	b.recentAction = engine.RecentPut
+	b.recenter[pIdx].action = engine.RecentPut
+	b.recenter[pIdx].put = tile
+
 }
 
-func (b *BaseRoundCtxHandler) AddRace(pIdx int, tiles mj.Cards, whoIdx int, tile int) {
+func (b *BaseRoundCtxHandler) AddRace(pIdx int, tileRaces *engine.TileRaces) {
 	own := b.tiles[pIdx]
-	race := append(tiles, tile)
+	//移除
+	for _, t := range tileRaces.Tiles {
+		tIdx := own.Hands.Index(t)
+		own.Hands = own.Hands.Remove(tIdx)
+	}
+
+	race := append(tileRaces.Tiles, tileRaces.Tile)
 	own.Races = append(own.Races, race)
 
 	//移交
-	who := b.tiles[whoIdx]
+	who := b.tiles[tileRaces.TargetIdx]
 	who.Outs = who.Outs[:len(who.Outs)-1]
+
+	b.recentIdx = pIdx
+	b.recentAction = engine.RecentRace
+	b.recenter[pIdx].action = engine.RecentRace
+	b.recenter[pIdx].race = tileRaces
 }
 
 func (b *BaseRoundCtxHandler) Forward(pIdx int) int {
@@ -120,4 +145,44 @@ func (b *BaseRoundCtxHandler) Backward(pIdx int) int {
 
 func (b *BaseRoundCtxHandler) Remained() int {
 	return b.table.Remains()
+}
+
+func (b *BaseRoundCtxHandler) RecentAction() engine.RecentAction {
+	return b.recentAction
+}
+
+func (b *BaseRoundCtxHandler) RecentIdx() int {
+	return b.recentIdx
+}
+
+func (b *BaseRoundCtxHandler) Recenter(targetIdx int) engine.RoundOpsRecent {
+	return b.recenter[targetIdx]
+}
+
+type BaseRecenter struct {
+	idx    int
+	put    int
+	take   int
+	race   *engine.TileRaces
+	action engine.RecentAction
+}
+
+func (r *BaseRecenter) Idx() int {
+	return r.idx
+}
+
+func (r *BaseRecenter) Put() int {
+	return r.put
+}
+
+func (r *BaseRecenter) Take() int {
+	return r.take
+}
+
+func (r *BaseRecenter) Race() *engine.TileRaces {
+	return r.race
+}
+
+func (r *BaseRecenter) Action() engine.RecentAction {
+	return r.action
 }

@@ -41,9 +41,13 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 		tiles:   make(map[int]*api.PlayerTiles, players),
 		profits: make(map[int]*api.PlayerProfits, players),
 		custom:  make(map[string]any, 0),
+
+		recentAction: -1,
+		recentIdx:    -1,
+		recenter:     make(map[int]*BaseRecenter, 0),
 	}
 
-	//保存牌库
+	//保存牌库 初始化
 	for k, v := range members {
 		ctxOps.tiles[k] = &api.PlayerTiles{
 			Idx:        k,
@@ -53,8 +57,8 @@ func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHan
 			LastedTake: 0,
 			LastedPut:  0,
 		}
+		ctxOps.recenter[k] = &BaseRecenter{idx: k, put: 0, take: 0, race: nil}
 	}
-
 	return ctxOps
 }
 

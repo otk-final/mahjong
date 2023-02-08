@@ -69,8 +69,9 @@ type TakeParameter struct {
 	Direction int    `json:"direction"`
 }
 type TakeResult struct {
-	Tile     int `json:"tile"`
-	Remained int `json:"remained"`
+	Tile     int               `json:"tile"`
+	Remained int               `json:"remained"`
+	Usable   []*UsableRaceItem `json:"usable"`
 }
 
 type PutParameter struct {
@@ -112,10 +113,10 @@ type RaceEffects struct {
 }
 
 type RaceResult struct {
-	Action    string   `json:"action"`    //摸牌，或出牌
-	Direction int      `json:"direction"` //摸牌方向（首，尾）
-	Hands     mj.Cards `json:"hands"`
-	Tiles     mj.Cards `json:"tiles"`
+	Hands  mj.Cards          `json:"hands"`
+	Tiles  mj.Cards          `json:"tiles"`
+	Tile   int               `json:"tile"`
+	Usable []*UsableRaceItem `json:"usable"`
 }
 
 type GameQuery struct {
@@ -123,8 +124,9 @@ type GameQuery struct {
 }
 
 type GameInf struct {
-	RoomId string `json:"roomId"`
 	GamePayload
+	RoomId string            `json:"roomId"`
+	Usable []*UsableRaceItem `json:"usable"`
 }
 
 // PlayerTiles 玩家牌库
