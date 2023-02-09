@@ -37,7 +37,6 @@ type PutPayload struct {
 	Who   int `json:"who"`
 	Round int `json:"round"`
 	Tile  int `json:"tile"`
-	AckId int `json:"ackId"`
 }
 
 type RacePayload struct {

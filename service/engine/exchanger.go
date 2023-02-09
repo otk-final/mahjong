@@ -31,7 +31,7 @@ type NotifyHandle interface {
 	// Ack 回执确认
 	Ack(event *api.AckPayload)
 	// Turn 轮转
-	Turn(who int, interval int, ok bool)
+	Turn(event *api.TurnPayload, ok bool)
 	//Quit 退出
 	Quit(ok bool)
 }
@@ -117,7 +117,7 @@ func (exc *Exchanger) start(interval int) {
 			break
 		case p := <-exc.putCh:
 			//每当出一张牌，均需等待其他玩家确认或者抢占
-			p.AckId = aq.newAckId()
+			aq.newAckId()
 			//出牌事件
 			handler.Put(p)
 			break
@@ -148,7 +148,7 @@ func (exc *Exchanger) start(interval int) {
 				cd.restart(true)
 				//正常轮转下家
 				who := pos.next()
-				handler.Turn(who, interval, true)
+				handler.Turn(&api.TurnPayload{Who: who, Interval: interval}, true)
 			}
 			break
 		case <-cd.timer.C:
@@ -159,7 +159,7 @@ func (exc *Exchanger) start(interval int) {
 			//超时，玩家无任何动作
 			who := pos.next()
 			//非正常轮转下家
-			handler.Turn(who, interval, false)
+			handler.Turn(&api.TurnPayload{Who: who, Interval: interval}, false)
 		}
 	}
 }

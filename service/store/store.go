@@ -3,7 +3,7 @@ package store
 import (
 	"errors"
 	"mahjong/server/api"
-	"mahjong/server/engine"
+	"mahjong/service/engine"
 	"sync"
 )
 

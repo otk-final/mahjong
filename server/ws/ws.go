@@ -1,4 +1,4 @@
-package server
+package ws
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func wsRoute() http.HandlerFunc {
+func Route() http.HandlerFunc {
 
 	//创建链接
 	return func(writer http.ResponseWriter, request *http.Request) {
@@ -36,7 +36,7 @@ func wsRoute() http.HandlerFunc {
 			return
 		}
 		//判断房间是否存在
-		roomId := mux.Vars(request)["roomId"]
+		roomId := mux.Vars(request)["RoomId"]
 		conn, err := wu.Upgrade(writer, request, writer.Header())
 		if err != nil {
 			return
@@ -125,4 +125,13 @@ func (wsc *netChan) Close() {
 
 func (wsc *netChan) Key() string {
 	return fmt.Sprintf("%s#%s", wsc.roomId, wsc.identity.UserId)
+}
+
+func PostMessage(roomId, acctId string, data []byte) {
+	chKey := fmt.Sprintf("%s#%s", roomId, acctId)
+	temp, ok := netChanMap.Load(chKey)
+	if !ok {
+		return
+	}
+	temp.(*netChan).write <- data
 }

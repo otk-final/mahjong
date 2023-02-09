@@ -4,15 +4,15 @@ import (
 	"errors"
 	"mahjong/ploy"
 	"mahjong/server/api"
-	"mahjong/server/engine"
-	"mahjong/server/store"
+	"mahjong/server/broadcast"
 	"mahjong/server/wrap"
+	"mahjong/service"
+	"mahjong/service/engine"
+	"mahjong/service/store"
 	"net/http"
 )
 
-const turnInterval = 20
-
-// 开始游戏
+//  开始游戏
 func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.NoResp, error) {
 
 	//用户信息
@@ -46,32 +46,32 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 
 	//前置事件 初始化牌库
 	roundCtxOps := provider.InitOperation(setting)
-	startDispatcher := &RoomDispatcher{RoomId: body.RoomId, Players: pos.Joined()}
-
+	joined := pos.Joined()
 	//广播通知
-	notifyHandler := &BroadcastHandler{
-		roomId:     body.RoomId,
-		dispatcher: startDispatcher,
+	notifyHandler := &broadcast.Handler{
+		RoomId:  body.RoomId,
+		Pos:     pos,
+		Players: joined,
 	}
 
 	//开启计时器
 	exchanger := engine.NewExchanger(notifyHandler, pos)
-	exchanger.Run(turnInterval)
+	exchanger.Run(api.TurnInterval)
 
 	//注册缓存
 	store.CreateRoundCtx(body.RoomId, setting, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
-	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.GamePayload] {
+	broadcast.PostFunc(body.RoomId, joined, func(player *api.Player) *api.WebPacket[api.GamePayload] {
 		//从庄家开始
 		startPayload := api.GamePayload{
 			TurnIdx:  0,
-			Interval: turnInterval,
+			Interval: api.TurnInterval,
 			Remained: roundCtxOps.Remained(),
 			Players:  make([]*api.PlayerTiles, 0),
 		}
 		currentIdx := player.Idx
-		for _, user := range startDispatcher.Players {
+		for _, user := range joined {
 			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
 			startPayload.Players = append(startPayload.Players, tiles)
 		}
@@ -80,7 +80,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 	return api.Empty, nil
 }
 
-//查询玩家牌库
+//  查询玩家牌库
 func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.GameInf, error) {
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -137,7 +137,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 			Target: recentIdx,
 			Tile:   raceTile,
 		}
-		usableRaces, err = doRacePre(roundCtx, own, raceQuery)
+		usableRaces, err = service.DoRacePre(roundCtx, own, raceQuery)
 	} else {
 		//如果是本回合，兜底显示出牌入口
 		if turnIdx == own.Idx {
@@ -158,7 +158,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	}, nil
 }
 
-//挂机
+//  挂机
 func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) (*api.NoResp, error) {
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -172,39 +172,6 @@ func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) (*a
 	if err != nil {
 		return nil, err
 	}
-	pos.UpdateRobotProxy(joinPlayer.Idx, body.Level)
+	pos.EnableRobot(joinPlayer, body.Level)
 	return api.Empty, nil
-}
-
-type BroadcastHandler struct {
-	roomId     string
-	dispatcher *RoomDispatcher
-}
-
-func (handler *BroadcastHandler) Take(event *api.TakePayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.TakeEvent, "摸牌", event))
-}
-
-func (handler *BroadcastHandler) Put(event *api.PutPayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.PutEvent, "打牌", event))
-}
-
-func (handler *BroadcastHandler) Race(event *api.RacePayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event))
-}
-
-func (handler *BroadcastHandler) Win(event *api.WinPayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, "胡牌", event))
-}
-
-func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
-	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "确认", event))
-}
-
-func (handler *BroadcastHandler) Turn(who int, interval int, ok bool) {
-	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Interval: interval}))
-}
-
-func (handler *BroadcastHandler) Quit(ok bool) {
-
 }

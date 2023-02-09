@@ -2,13 +2,14 @@ package server
 
 import (
 	"mahjong/server/api"
-	"mahjong/server/engine"
-	"mahjong/server/store"
+	"mahjong/server/broadcast"
 	"mahjong/server/wrap"
+	"mahjong/service/engine"
+	"mahjong/service/store"
 	"net/http"
 )
 
-// 创建房间
+//  创建房间
 func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*api.RoomInf, error) {
 
 	//用户信息
@@ -48,7 +49,7 @@ func roomIdGen() string {
 	return "100"
 }
 
-// 加入房间
+//  加入房间
 func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.RoomInf, error) {
 
 	//用户信息
@@ -85,8 +86,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		store.UpdatePosition(body.RoomId, pos)
 
 		//通知新玩家加入
-		rx := &RoomDispatcher{RoomId: body.RoomId, Players: pos.Joined()}
-		Broadcast(rx, api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member, Round: 0}))
+		broadcast.Post(body.RoomId, pos.Joined(), api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member, Round: 0}))
 	}
 
 	//判定游戏是否开始
@@ -99,7 +99,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	}, nil
 }
 
-// 退出房间
+//  退出房间
 func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.NoResp, error) {
 
 	return api.Empty, nil

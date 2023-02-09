@@ -13,23 +13,25 @@ type Position struct {
 	num     int
 	master  *api.Player //庄家
 	members []*api.Player
-	robots  map[int]int
+	robots  map[int]*api.Roboter
 }
 
-// UpdateRobotProxy 开启 设置 挂机等级
-func (pos *Position) UpdateRobotProxy(pIdx, level int) {
+func (pos *Position) EnableRobot(p *api.Player, level int) {
 	//同步
 	defer pos.lock.Unlock()
 	pos.lock.Lock()
 
 	if level == -1 {
-		delete(pos.robots, pIdx)
+		delete(pos.robots, p.Idx)
 	} else {
-		pos.robots[pIdx] = level
+		pos.robots[p.Idx] = &api.Roboter{
+			Player: p,
+			Level:  0,
+		}
 	}
 }
 
-func (pos *Position) IsRobot(pIdx int) (bool, int) {
+func (pos *Position) IsRobot(pIdx int) (bool, *api.Roboter) {
 	level, ok := pos.robots[pIdx]
 	return ok, level
 }

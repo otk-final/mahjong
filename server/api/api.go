@@ -42,6 +42,11 @@ type Player struct {
 	Avatar string `json:"avatar"`
 }
 
+type Roboter struct {
+	*Player
+	Level int
+}
+
 // RoomInf 房间信息
 type RoomInf struct {
 	RoomId  string         `json:"roomId"`

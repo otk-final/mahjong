@@ -3,7 +3,7 @@ package ploy
 import (
 	"mahjong/mj"
 	"mahjong/server/api"
-	"mahjong/server/engine"
+	engine2 "mahjong/service/engine"
 	"sort"
 	"sync"
 )
@@ -11,11 +11,11 @@ import (
 // GameDefine 游戏规则
 type GameDefine interface {
 	// InitOperation 初始化
-	InitOperation(setting *api.GameConfigure) engine.RoundOperation
+	InitOperation(setting *api.GameConfigure) engine2.RoundOperation
 	// Handles 策略集
 	Handles() map[api.RaceType]RaceEvaluator
 	// Renew 从上下文中恢复
-	Renew(ctx *engine.RoundCtx) GameDefine
+	Renew(ctx *engine2.RoundCtx) GameDefine
 	// Finish 结束
 	Finish()
 	// Quit 退出
@@ -25,7 +25,7 @@ type GameDefine interface {
 // RaceEvaluator 碰，吃，杠，胡...评估
 type RaceEvaluator interface {
 	// Eval 可行判断
-	Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards)
+	Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards)
 }
 
 func NewProvider(mode string) GameDefine {
@@ -46,17 +46,17 @@ func NewProvider(mode string) GameDefine {
 	return nil
 }
 
-func RenewProvider(ctx *engine.RoundCtx) GameDefine {
+func RenewProvider(ctx *engine2.RoundCtx) GameDefine {
 	return NewProvider(ctx.Configure().Mode).Renew(ctx)
 }
 
 type BaseRoundCtxHandler struct {
 	lock         sync.Mutex
 	setting      *api.GameConfigure
-	table        *engine.Table
+	table        *engine2.Table
 	tiles        map[int]*api.PlayerTiles
 	profits      map[int]*api.PlayerProfits
-	recentAction engine.RecentAction //最近数据
+	recentAction engine2.RecentAction //最近数据
 	recentIdx    int
 	recenter     map[int]*BaseRecenter
 }
@@ -88,8 +88,8 @@ func (b *BaseRoundCtxHandler) AddTake(pIdx int, tile int) {
 	own.Hands = append(own.Hands, tile)
 
 	b.recentIdx = pIdx
-	b.recentAction = engine.RecentTake
-	b.recenter[pIdx].action = engine.RecentTake
+	b.recentAction = engine2.RecentTake
+	b.recenter[pIdx].action = engine2.RecentTake
 	b.recenter[pIdx].take = tile
 }
 
@@ -105,13 +105,13 @@ func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 	own.Outs = append(own.Outs, tile)
 
 	b.recentIdx = pIdx
-	b.recentAction = engine.RecentPut
-	b.recenter[pIdx].action = engine.RecentPut
+	b.recentAction = engine2.RecentPut
+	b.recenter[pIdx].action = engine2.RecentPut
 	b.recenter[pIdx].put = tile
 
 }
 
-func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces *engine.TileRaces) {
+func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces *engine2.TileRaces) {
 	defer b.lock.Unlock()
 	b.lock.Lock()
 
@@ -148,8 +148,8 @@ func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces
 	}
 
 	b.recentIdx = pIdx
-	b.recentAction = engine.RecentRace
-	b.recenter[pIdx].action = engine.RecentRace
+	b.recentAction = engine2.RecentRace
+	b.recenter[pIdx].action = engine2.RecentRace
 	b.recenter[pIdx].race = tileRaces
 }
 
@@ -165,7 +165,7 @@ func (b *BaseRoundCtxHandler) Remained() int {
 	return b.table.Remains()
 }
 
-func (b *BaseRoundCtxHandler) RecentAction() engine.RecentAction {
+func (b *BaseRoundCtxHandler) RecentAction() engine2.RecentAction {
 	return b.recentAction
 }
 
@@ -173,7 +173,7 @@ func (b *BaseRoundCtxHandler) RecentIdx() int {
 	return b.recentIdx
 }
 
-func (b *BaseRoundCtxHandler) Recenter(targetIdx int) engine.RoundOpsRecent {
+func (b *BaseRoundCtxHandler) Recenter(targetIdx int) engine2.RoundOpsRecent {
 	return b.recenter[targetIdx]
 }
 
@@ -181,8 +181,8 @@ type BaseRecenter struct {
 	idx    int
 	put    int
 	take   int
-	race   *engine.TileRaces
-	action engine.RecentAction
+	race   *engine2.TileRaces
+	action engine2.RecentAction
 }
 
 func (r *BaseRecenter) Idx() int {
@@ -197,10 +197,10 @@ func (r *BaseRecenter) Take() int {
 	return r.take
 }
 
-func (r *BaseRecenter) Race() *engine.TileRaces {
+func (r *BaseRecenter) Race() *engine2.TileRaces {
 	return r.race
 }
 
-func (r *BaseRecenter) Action() engine.RecentAction {
+func (r *BaseRecenter) Action() engine2.RecentAction {
 	return r.action
 }

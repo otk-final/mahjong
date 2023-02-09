@@ -3,7 +3,7 @@ package ploy
 import (
 	"mahjong/mj"
 	"mahjong/server/api"
-	"mahjong/server/engine"
+	"mahjong/service/engine"
 )
 
 // LaiProvider 癞子

@@ -53,3 +53,5 @@ const (
 	// TakeRace 摸
 	TakeRace RaceType = 2
 )
+
+const TurnInterval = 20

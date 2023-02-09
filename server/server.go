@@ -1,14 +1,10 @@
 package server
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"mahjong/server/api"
-	"mahjong/server/engine"
 	"mahjong/server/wrap"
+	"mahjong/server/ws"
 	"net/http"
 )
 
@@ -27,9 +23,10 @@ func Apis() http.Handler {
 	room.Path("/exit").HandlerFunc(wrap.NewWrapper(exit).Func())
 
 	//游戏
-	game := muxRouter.Methods("POST").PathPrefix("/game").Subrouter()
+	game := muxRouter.Methods("POST").PathPrefix("/service").Subrouter()
 	game.Path("/start").HandlerFunc(wrap.NewWrapper(start).Func())
 	game.Path("/load").HandlerFunc(wrap.NewWrapper(load).Func())
+	game.Path("/robot").HandlerFunc(wrap.NewWrapper(robot).Func())
 
 	//玩家事件
 	play := muxRouter.Methods("POST").PathPrefix("/play").Subrouter()
@@ -41,51 +38,6 @@ func Apis() http.Handler {
 	play.Path("/ignore").HandlerFunc(wrap.NewWrapper(ignore).Func())
 
 	//websocket链接
-	muxRouter.Handle("/ws/{RoomId}", wsRoute())
+	muxRouter.Handle("/ws/{RoomId}", ws.Route())
 	return muxCors.Handler(muxRouter)
-}
-
-type RoomDispatcher struct {
-	RoomId  string
-	Players []*api.Player
-}
-
-func (dis RoomDispatcher) FilterRobots(pos *engine.Position) {
-
-}
-
-func getChan(roomId, acctId string) (*netChan, error) {
-	chKey := fmt.Sprintf("%s#%s", roomId, acctId)
-	temp, ok := netChanMap.Load(chKey)
-	if !ok {
-		return nil, errors.New("not connected")
-	}
-	return temp.(*netChan), nil
-}
-
-func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
-	//序列化 json
-	msg, _ := json.Marshal(packet)
-	//所有成员
-	for _, member := range dispatcher.Players {
-		memberChan, err := getChan(dispatcher.RoomId, member.UId)
-		if err != nil {
-			continue
-		}
-		memberChan.write <- msg
-	}
-}
-
-func BroadcastFunc[T any](dispatcher *RoomDispatcher, fn func(*api.Player) *api.WebPacket[T]) {
-	//所有成员
-	for _, member := range dispatcher.Players {
-		packet := fn(member)
-		memberChan, err := getChan(dispatcher.RoomId, member.UId)
-		if err != nil {
-			continue
-		}
-		//序列化 json
-		msg, _ := json.Marshal(packet)
-		memberChan.write <- msg
-	}
 }
