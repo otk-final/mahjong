@@ -7,13 +7,16 @@ import (
 )
 
 type Exchanger struct {
-	pos    *Position
-	ack    *ackQueue
-	cd     *countdown
-	takeCh chan *api.TakePayload
-	putCh  chan *api.PutPayload
-	raceCh chan *api.RacePayload
-	ackCh  chan *api.AckPayload
+	pos     *Position
+	handler NotifyHandle
+	_ack    *ackQueue
+	_cd     *countdown
+	_exit   bool
+	takeCh  chan *api.TakePayload
+	putCh   chan *api.PutPayload
+	raceCh  chan *api.RacePayload
+	winCh   chan *api.WinPayload
+	ackCh   chan *api.AckPayload
 }
 
 type NotifyHandle interface {
@@ -24,7 +27,7 @@ type NotifyHandle interface {
 	// Race 抢占
 	Race(event *api.RacePayload)
 	// Win 胡牌
-	Win(event *api.RacePayload)
+	Win(event *api.WinPayload)
 	// Ack 回执确认
 	Ack(event *api.AckPayload)
 	// Turn 轮转
@@ -59,38 +62,45 @@ func (aq *ackQueue) ready(who int, ackId int) bool {
 	return aq.threshold == 0
 }
 
-func NewExchanger() *Exchanger {
+func NewExchanger(handler NotifyHandle, pos *Position) *Exchanger {
 	return &Exchanger{
-		takeCh: make(chan *api.TakePayload, 0),
-		putCh:  make(chan *api.PutPayload, 0),
-		raceCh: make(chan *api.RacePayload, 0),
-		ackCh:  make(chan *api.AckPayload, 0),
+		handler: handler,
+		pos:     pos,
+		takeCh:  make(chan *api.TakePayload, 1),
+		putCh:   make(chan *api.PutPayload, 1),
+		raceCh:  make(chan *api.RacePayload, 1),
+		winCh:   make(chan *api.WinPayload, 1),
+		ackCh:   make(chan *api.AckPayload, 1),
 	}
 }
-func (exc *Exchanger) Run(handler NotifyHandle, pos *Position, interval int) {
-	go exc.start(handler, pos, interval)
+func (exc *Exchanger) Run(interval int) {
+	go exc.start(interval)
 }
-func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
+func (exc *Exchanger) start(interval int) {
+	pos := exc.pos
+	handler := exc.handler
 
 	//计时器
 	cd := newCountdown(interval)
-	exc.cd = cd
+	exc._cd = cd
 
 	//default 就绪队列 除自己
 	aq := &ackQueue{members: pos.Num() - 1}
-	exc.ack = aq
+	exc._ack = aq
 
 	//释放
 	defer func() {
+		log.Println("结束 exchanger")
 		cd.stop()
 		close(exc.takeCh)
 		close(exc.putCh)
 		close(exc.raceCh)
+		close(exc.winCh)
 		close(exc.ackCh)
 	}()
 
 	//从庄家开始
-	pos.move(pos.master.Idx)
+	exc.pos.move(exc.pos.master.Idx)
 
 	//堵塞监听
 	for {
@@ -118,14 +128,14 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 			cd.restart(true)
 			//并清除待ack队列
 			aq.reset()
-			//胡牌则退出
-			if r.RaceType == api.WinRace {
-				handler.Win(r)
-				return
-			} else {
-				handler.Race(r)
-			}
+			//通知
+			handler.Race(r)
 			break
+		case _ = <-exc.winCh:
+			//通知当局游戏结束
+			exc._exit = true
+			handler.Quit(true)
+			return
 		case a := <-exc.ackCh:
 			//过期则忽略当前事件
 			if a.AckId < aq.incrId() {
@@ -155,11 +165,11 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 }
 
 func (exc *Exchanger) CurrentAckId() int {
-	return exc.ack.incrId()
+	return exc._ack.incrId()
 }
 
 func (exc *Exchanger) TurnTime() int {
-	return exc.cd.remaining()
+	return exc._cd.remaining()
 }
 
 func (exc *Exchanger) PostTake(e *api.TakePayload) {
@@ -173,6 +183,14 @@ func (exc *Exchanger) PostRace(e *api.RacePayload) {
 }
 func (exc *Exchanger) PostAck(e *api.AckPayload) {
 	exc.ackCh <- e
+}
+func (exc *Exchanger) PostWin(e *api.WinPayload) {
+	//通知结束 只通知一次
+	if !exc._exit {
+		exc.winCh <- e
+	}
+	//判定只会有存在一家，但胡牌可能是多家，则直接通知
+	exc.handler.Win(e)
 }
 
 type countdown struct {
@@ -192,8 +210,8 @@ func newCountdown(second int) *countdown {
 
 func (c *countdown) restart(reset bool) {
 	if reset {
-		ok := c.timer.Reset(c.interval)
-		log.Printf("重置定时：%v", ok)
+		//ok := c.timer.Reset(c.interval)
+		//log.Printf("重置定时：%v", ok)
 	}
 	//下一次时间
 	c.nextTime = time.Now().Add(c.interval)

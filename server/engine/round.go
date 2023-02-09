@@ -12,17 +12,17 @@ type RoundCtx struct {
 	setting    *api.GameConfigure
 	position   *Position
 	exchanger  *Exchanger
-	handlerCtx RoundOpsCtx
+	handlerOps RoundOperation
 }
 
-func NewRoundCtx(round int, setting *api.GameConfigure, pos *Position, exchanger *Exchanger, handlerCtx RoundOpsCtx) *RoundCtx {
+func NewRoundCtx(round int, setting *api.GameConfigure, pos *Position, exchanger *Exchanger, handlerOps RoundOperation) *RoundCtx {
 	return &RoundCtx{
 		Lock:       &sync.Mutex{},
 		round:      round,
 		setting:    setting,
 		position:   pos,
 		exchanger:  exchanger,
-		handlerCtx: handlerCtx,
+		handlerOps: handlerOps,
 	}
 }
 
@@ -36,8 +36,8 @@ func (ctx *RoundCtx) Pos() *Position {
 func (ctx *RoundCtx) Exchange() *Exchanger {
 	return ctx.exchanger
 }
-func (ctx *RoundCtx) HandlerCtx() RoundOpsCtx {
-	return ctx.handlerCtx
+func (ctx *RoundCtx) Operating() RoundOperation {
+	return ctx.handlerOps
 }
 func (ctx *RoundCtx) Player(acctId string) (*api.Player, error) {
 	return ctx.position.Index(acctId)
@@ -49,8 +49,8 @@ type TileRaces struct {
 	Tile      int
 }
 
-// RoundOpsCtx 当局
-type RoundOpsCtx interface {
+// RoundOperation 当局
+type RoundOperation interface {
 	GetTiles(pIdx int) *api.PlayerTiles
 
 	GetProfits(pIdx int) *api.PlayerProfits

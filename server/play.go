@@ -25,9 +25,10 @@ func take(w http.ResponseWriter, r *http.Request, body *api.TakeParameter) (*api
 	if !roundCtx.Pos().Check(own.Idx) {
 		return nil, errors.New("非当前回合")
 	}
+	ops := roundCtx.Operating()
 
 	//是否已经摸牌了
-	recentOps := roundCtx.HandlerCtx().Recenter(own.Idx)
+	recentOps := ops.Recenter(own.Idx)
 	if recentOps != nil && recentOps.Action() == engine.RecentTake {
 		return nil, errors.New("不允许重复摸牌")
 	}
@@ -54,21 +55,22 @@ func take(w http.ResponseWriter, r *http.Request, body *api.TakeParameter) (*api
 }
 
 func doTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter) *api.TakeResult {
+	ops := roundCtx.Operating()
 	//摸牌
 	var takeTile int
 	if body.Direction == -1 {
-		takeTile = roundCtx.HandlerCtx().Backward(own.Idx)
+		takeTile = ops.Backward(own.Idx)
 	} else {
-		takeTile = roundCtx.HandlerCtx().Forward(own.Idx)
+		takeTile = ops.Forward(own.Idx)
 	}
-	roundCtx.HandlerCtx().AddTake(own.Idx, takeTile)
+	ops.AddTake(own.Idx, takeTile)
 	//剩余牌
-	takeRemained := roundCtx.HandlerCtx().Remained()
+	takeRemained := ops.Remained()
 	//通知
 	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Round: body.Round, Tile: 0, Remained: takeRemained})
 
 	return &api.TakeResult{
-		PlayerTiles: roundCtx.HandlerCtx().GetTiles(own.Idx),
+		PlayerTiles: ops.GetTiles(own.Idx),
 		Take:        takeTile, Remained: takeRemained,
 	}
 }
@@ -87,21 +89,22 @@ func put(w http.ResponseWriter, r *http.Request, body *api.PutParameter) (*api.P
 	if !roundCtx.Pos().Check(own.Idx) {
 		return nil, errors.New("非当前回合")
 	}
+	ops := roundCtx.Operating()
 	//是否已经打牌了
-	recentOps := roundCtx.HandlerCtx().Recenter(own.Idx)
+	recentOps := ops.Recenter(own.Idx)
 	if recentOps != nil && recentOps.Action() == engine.RecentPut {
 		return nil, errors.New("不允许重复出牌")
 	}
 
 	//保存
-	roundCtx.HandlerCtx().AddPut(own.Idx, body.Tile)
+	ops.AddPut(own.Idx, body.Tile)
 	//通知
 	body.Who = own.Idx
 	roundCtx.Exchange().PostPut(body.PutPayload)
 
 	//最新手牌
 	return &api.PutResult{
-		PlayerTiles: roundCtx.HandlerCtx().GetTiles(own.Idx),
+		PlayerTiles: ops.GetTiles(own.Idx),
 		Put:         body.Tile,
 	}, nil
 }
@@ -131,7 +134,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
 
-	//加锁防止并发操作
+	//加锁防止并发操作 互斥
 	if !roundCtx.Lock.TryLock() {
 		return nil, errors.New("并发错误")
 	}
@@ -144,9 +147,11 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 		return nil, errors.New("不支持当前操作")
 	}
 
+	ops := roundCtx.Operating()
+
 	//目标牌
-	recentIdx := roundCtx.HandlerCtx().RecentIdx()
-	recenter := roundCtx.HandlerCtx().Recenter(recentIdx)
+	recentIdx := ops.RecentIdx()
+	recenter := ops.Recenter(recentIdx)
 	targetTile := -1
 	if recentIdx == own.Idx {
 		targetTile = recenter.Take()
@@ -155,13 +160,13 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	}
 
 	//判定
-	hands := roundCtx.HandlerCtx().GetTiles(own.Idx).Hands.Clone()
+	hands := ops.GetTiles(own.Idx).Hands.Clone()
 	if ok, plans := eval.Eval(roundCtx, own.Idx, hands, recentIdx, targetTile); !ok || !matchRacePlan(body.Tiles, plans) {
 		return nil, errors.New("不支持牌型")
 	}
 
 	//保存
-	roundCtx.HandlerCtx().AddRace(own.Idx, body.RaceType, &engine.TileRaces{Tiles: body.Tiles.Clone(), TargetIdx: recentIdx, Tile: targetTile})
+	ops.AddRace(own.Idx, body.RaceType, &engine.TileRaces{Tiles: body.Tiles.Clone(), TargetIdx: recentIdx, Tile: targetTile})
 
 	//通知
 	roundCtx.Exchange().PostRace(&api.RacePayload{
@@ -208,7 +213,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 
 	//最新持牌
 	return &api.RaceResult{
-		PlayerTiles:  roundCtx.HandlerCtx().GetTiles(own.Idx),
+		PlayerTiles:  ops.GetTiles(own.Idx),
 		ContinueTake: continueTake,
 		Options:      usableRaces,
 		Target:       recentIdx,
@@ -225,10 +230,10 @@ func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*ap
 		return nil, err
 	}
 	own, _ := roundCtx.Player(header.UserId)
-
+	ops := roundCtx.Operating()
 	//目标牌
-	recentIdx := roundCtx.HandlerCtx().RecentIdx()
-	recenter := roundCtx.HandlerCtx().Recenter(recentIdx)
+	recentIdx := ops.RecentIdx()
+	recenter := ops.Recenter(recentIdx)
 	targetTile := -1
 	if recentIdx == own.Idx {
 		targetTile = recenter.Take()
@@ -253,10 +258,10 @@ func doRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview
 
 	//策略集
 	var handles = ploy.RenewProvider(roundCtx).Handles()
-
+	ops := roundCtx.Operating()
 	//判定可用
 	items := make([]*api.RaceOption, 0)
-	hands := roundCtx.HandlerCtx().GetTiles(own.Idx).Hands
+	hands := ops.GetTiles(own.Idx).Hands
 	for k, v := range handles {
 		ok, usable := v.Eval(roundCtx, own.Idx, hands.Clone(), body.Target, body.Tile)
 		if !ok {
@@ -300,6 +305,58 @@ func ignore(w http.ResponseWriter, r *http.Request, body *api.AckParameter) (*ap
 }
 
 //胡牌
-func win(w http.ResponseWriter, r *http.Request, body api.RacePreview) (*api.NoResp, error) {
-	return nil, nil
+func win(w http.ResponseWriter, r *http.Request, body api.WinParameter) (*api.WinResult, error) {
+
+	header := wrap.GetHeader(r)
+	//上下文
+	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
+	if err != nil {
+		return nil, err
+	}
+	//玩家信息
+	own, _ := roundCtx.Player(header.UserId)
+
+	//加锁防止并发操作 等待
+	defer roundCtx.Lock.Unlock()
+	roundCtx.Lock.Lock()
+
+	//游戏策略
+	var provider = ploy.RenewProvider(roundCtx)
+	winEval, exist := provider.Handles()[api.WinRace]
+	if !exist {
+		return nil, errors.New("不支持当前操作")
+	}
+	ops := roundCtx.Operating()
+
+	//目标牌
+	recentIdx := ops.RecentIdx()
+	recenter := ops.Recenter(recentIdx)
+	targetTile := -1
+	if recentIdx == own.Idx {
+		targetTile = recenter.Take()
+	} else {
+		targetTile = recenter.Put()
+	}
+
+	//判定
+	hands := ops.GetTiles(own.Idx).Hands.Clone()
+	if ok, _ := winEval.Eval(roundCtx, own.Idx, hands, recentIdx, targetTile); !ok {
+		return nil, errors.New("不支持胡牌")
+	}
+
+	//TODO 根据上下文重新定义胡牌类型
+	effectType := api.WinRace
+
+	//通知
+	winPayload := &api.WinPayload{
+		Who:    own.Idx,
+		Round:  body.Round,
+		Tiles:  ops.GetTiles(own.Idx),
+		Target: recentIdx,
+		Tile:   targetTile,
+		Effect: effectType,
+	}
+	roundCtx.Exchange().PostWin(winPayload)
+
+	return &api.WinResult{WinPayload: winPayload}, nil
 }

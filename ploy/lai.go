@@ -34,14 +34,14 @@ type LaiRoundCtxHandler struct {
 }
 
 func (lp *LaiProvider) Renew(ctx *engine.RoundCtx) GameDefine {
-	ctxHandler := ctx.HandlerCtx().(*LaiRoundCtxHandler)
+	ctxHandler := ctx.Operating().(*LaiRoundCtxHandler)
 	lp.tileLai = ctxHandler.Lai
 	lp.tileCao = ctxHandler.Cao
 	lp.tileGui = ctxHandler.Gui
 	return lp
 }
 
-func (lp *LaiProvider) InitOpsCtx(setting *api.GameConfigure) engine.RoundOpsCtx {
+func (lp *LaiProvider) InitOperation(setting *api.GameConfigure) engine.RoundOperation {
 
 	//牌库 只有万，条，筒
 	laiLib := mj.LoadLibrary(mj.WanCard, mj.TiaoCard, mj.TongCard)

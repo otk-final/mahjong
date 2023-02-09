@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"log"
 	"mahjong/ploy"
 	"mahjong/server/api"
 	"mahjong/server/engine"
@@ -11,7 +10,7 @@ import (
 	"net/http"
 )
 
-const turnInterval = 30
+const turnInterval = 20
 
 // 开始游戏
 func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.NoResp, error) {
@@ -46,16 +45,18 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 	provider := ploy.NewProvider(setting.Mode)
 
 	//前置事件 初始化牌库
-	roundCtxOps := provider.InitOpsCtx(setting)
-	startDispatcher := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
+	roundCtxOps := provider.InitOperation(setting)
+	startDispatcher := &RoomDispatcher{RoomId: body.RoomId, Players: pos.Joined()}
+
+	//广播通知
 	notifyHandler := &BroadcastHandler{
-		provider:   provider,
+		roomId:     body.RoomId,
 		dispatcher: startDispatcher,
 	}
 
 	//开启计时器
-	exchanger := engine.NewExchanger()
-	exchanger.Run(notifyHandler, pos, turnInterval)
+	exchanger := engine.NewExchanger(notifyHandler, pos)
+	exchanger.Run(turnInterval)
 
 	//注册缓存
 	store.CreateRoundCtx(body.RoomId, setting, pos, exchanger, roundCtxOps)
@@ -70,7 +71,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 			Players:  make([]*api.PlayerTiles, 0),
 		}
 		currentIdx := player.Idx
-		for _, user := range startDispatcher.members {
+		for _, user := range startDispatcher.Players {
 			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
 			startPayload.Players = append(startPayload.Players, tiles)
 		}
@@ -92,7 +93,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	own, _ := roundCtx.Player(header.UserId)
 
 	//查询牌库
-	roundCtxOps := roundCtx.HandlerCtx()
+	roundCtxOps := roundCtx.Operating()
 	joined := roundCtx.Pos().Joined()
 	userTiles := make([]*api.PlayerTiles, 0)
 	for _, user := range joined {
@@ -104,13 +105,14 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	usableRaces := make([]*api.RaceOption, 0)
 
 	// 还原牌局
+	ops := roundCtx.Operating()
 
 	//当前回合
 	turnIdx := roundCtx.Pos().TurnIdx()
 
 	//最后一次事件 ? 可能是自己，也可能是别人（摸牌，出牌，判定）
-	recentAction := roundCtx.HandlerCtx().RecentAction()
-	recentIdx := roundCtx.HandlerCtx().RecentIdx()
+	recentAction := ops.RecentAction()
+	recentIdx := ops.RecentIdx()
 
 	//本回合 已摸牌，触发判定
 	ownCheck := recentIdx == own.Idx && recentAction == engine.RecentTake
@@ -119,7 +121,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	if ownCheck || eachCheck {
 
 		//目标牌
-		recenter := roundCtx.HandlerCtx().Recenter(recentIdx)
+		recenter := ops.Recenter(recentIdx)
 		raceTile := -1
 		if ownCheck {
 			raceTile = recenter.Take()
@@ -156,14 +158,27 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	}, nil
 }
 
-type BroadcastHandler struct {
-	roomId     string
-	provider   ploy.GameDefine
-	dispatcher *RoomDispatcher
+//挂机
+func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) (*api.NoResp, error) {
+	//用户信息
+	header := wrap.GetHeader(r)
+	//当前就坐信息
+	pos, err := store.GetPosition(body.RoomId)
+	if err != nil {
+		return nil, err
+	}
+	//是否加入房间
+	joinPlayer, err := pos.Index(header.UserId)
+	if err != nil {
+		return nil, err
+	}
+	pos.UpdateRobotProxy(joinPlayer.Idx, body.Level)
+	return api.Empty, nil
 }
 
-func (handler *BroadcastHandler) RoundCtx(acctId string) (*engine.RoundCtx, error) {
-	return store.LoadRoundCtx(handler.roomId, acctId)
+type BroadcastHandler struct {
+	roomId     string
+	dispatcher *RoomDispatcher
 }
 
 func (handler *BroadcastHandler) Take(event *api.TakePayload) {
@@ -178,20 +193,18 @@ func (handler *BroadcastHandler) Race(event *api.RacePayload) {
 	Broadcast(handler.dispatcher, api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event))
 }
 
-func (handler *BroadcastHandler) Win(event *api.RacePayload) {
+func (handler *BroadcastHandler) Win(event *api.WinPayload) {
 	Broadcast(handler.dispatcher, api.Packet(api.WinEvent, "胡牌", event))
 }
 
 func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
-	log.Printf("忽略：%d %d", event.Who, event.AckId)
-	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "待确认", event))
+	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "确认", event))
 }
 
 func (handler *BroadcastHandler) Turn(who int, interval int, ok bool) {
-	log.Printf("当前回合：%d %v", who, ok)
 	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Interval: interval}))
 }
 
 func (handler *BroadcastHandler) Quit(ok bool) {
-	handler.provider.Quit()
+
 }

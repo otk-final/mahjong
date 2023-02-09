@@ -16,7 +16,7 @@ func (bp *BaseProvider) Renew(ctx *engine.RoundCtx) GameDefine {
 	return bp
 }
 
-func (bp *BaseProvider) InitOpsCtx(setting *api.GameConfigure) engine.RoundOpsCtx {
+func (bp *BaseProvider) InitOperation(setting *api.GameConfigure) engine.RoundOperation {
 
 	//初始牌库 全量牌
 	mjLib := mj.LoadLibrary()
@@ -164,7 +164,7 @@ func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles
 	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
-	tileCtx := ctx.HandlerCtx().GetTiles(raceIdx)
+	tileCtx := ctx.Operating().GetTiles(raceIdx)
 	//检索 碰过的
 	races := tileCtx.Races
 	for i := 0; i < len(races); i++ {

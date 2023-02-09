@@ -69,8 +69,6 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		Avatar: "",
 		Ip:     r.RemoteAddr,
 	}
-	//房间信息
-	setting := store.GetRoomConfig(body.RoomId)
 
 	//是否已就坐
 	exist, err := pos.Index(header.UserId)
@@ -87,7 +85,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		store.UpdatePosition(body.RoomId, pos)
 
 		//通知新玩家加入
-		rx := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
+		rx := &RoomDispatcher{RoomId: body.RoomId, Players: pos.Joined()}
 		Broadcast(rx, api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member, Round: 0}))
 	}
 
@@ -97,7 +95,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		Own:     member,
 		Begin:   pos.TurnIdx() != -1,
 		Players: pos.Joined(),
-		Config:  setting,
+		Config:  store.GetRoomConfig(body.RoomId),
 	}, nil
 }
 

@@ -49,6 +49,14 @@ type RacePayload struct {
 	Tile     int      `json:"tile"`
 	Interval int      `json:"interval"`
 }
+type WinPayload struct {
+	Who    int          `json:"who"`
+	Target int          `json:"target"`
+	Tile   int          `json:"tile"`
+	Round  int          `json:"round"`
+	Tiles  *PlayerTiles `json:"tiles"`
+	Effect RaceType     `json:"effect"`
+}
 
 type AckPayload struct {
 	Who   int `json:"who"`

@@ -88,12 +88,10 @@ type RaceResult struct {
 	TargetTile   int           `json:"targetTile"`
 	Options      []*RaceOption `json:"options"`
 }
-
 type RaceOption struct {
 	RaceType RaceType   `json:"raceType"`
 	Tiles    []mj.Cards `json:"tiles"`
 }
-
 type RacePreview struct {
 	RoomId string `json:"roomId"`
 	Round  int    `json:"round"`
@@ -104,6 +102,14 @@ type RacePreview struct {
 
 type RaceEffects struct {
 	Options []*RaceOption `json:"options"`
+}
+
+type WinParameter struct {
+	RoomId string `json:"roomId"`
+	Round  int    `json:"round"`
+}
+type WinResult struct {
+	*WinPayload
 }
 
 type AckParameter struct {
@@ -119,6 +125,11 @@ type GameInf struct {
 	*GamePayload
 	RoomId  string        `json:"roomId"`
 	Options []*RaceOption `json:"options"`
+}
+
+type RobotParameter struct {
+	RoomId string `json:"roomId"`
+	Level  int    `json:"level"`
 }
 
 // PlayerTiles 玩家牌库

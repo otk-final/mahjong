@@ -10,8 +10,8 @@ import (
 
 // GameDefine 游戏规则
 type GameDefine interface {
-	// InitOpsCtx 初始化
-	InitOpsCtx(setting *api.GameConfigure) engine.RoundOpsCtx
+	// InitOperation 初始化
+	InitOperation(setting *api.GameConfigure) engine.RoundOperation
 	// Handles 策略集
 	Handles() map[api.RaceType]RaceEvaluator
 	// Renew 从上下文中恢复

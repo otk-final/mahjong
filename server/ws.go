@@ -36,7 +36,7 @@ func wsRoute() http.HandlerFunc {
 			return
 		}
 		//判断房间是否存在
-		roomId := mux.Vars(request)["RoomId"]
+		roomId := mux.Vars(request)["roomId"]
 		conn, err := wu.Upgrade(writer, request, writer.Header())
 		if err != nil {
 			return
@@ -50,7 +50,6 @@ func wsRoute() http.HandlerFunc {
 				UserName: un,
 				Token:    subProtocolsHeaders[2],
 			}
-
 		} else {
 			identity = &api.IdentityHeader{
 				UserId:   request.Header.Get("userId"),

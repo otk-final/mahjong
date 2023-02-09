@@ -13,15 +13,32 @@ type Position struct {
 	num     int
 	master  *api.Player //庄家
 	members []*api.Player
+	robots  map[int]int
+}
+
+// UpdateRobotProxy 开启 设置 挂机等级
+func (pos *Position) UpdateRobotProxy(pIdx, level int) {
+	//同步
+	defer pos.lock.Unlock()
+	pos.lock.Lock()
+
+	if level == -1 {
+		delete(pos.robots, pIdx)
+	} else {
+		pos.robots[pIdx] = level
+	}
+}
+
+func (pos *Position) IsRobot(pIdx int) (bool, int) {
+	level, ok := pos.robots[pIdx]
+	return ok, level
 }
 
 func NewPosition(num int, master *api.Player) (*Position, error) {
-
 	//虚位以待 join
 	if master.Idx >= num {
 		return nil, errors.New("master idx error")
 	}
-
 	return &Position{
 		lock:    &sync.Mutex{},
 		turnIdx: -1,

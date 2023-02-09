@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"mahjong/server/api"
+	"mahjong/server/engine"
 	"mahjong/server/wrap"
 	"net/http"
 )
@@ -46,11 +47,15 @@ func Apis() http.Handler {
 
 type RoomDispatcher struct {
 	RoomId  string
-	members []*api.Player
+	Players []*api.Player
 }
 
-func (rx *RoomDispatcher) GetPlayer(acctId string) (*netChan, error) {
-	chKey := fmt.Sprintf("%s#%s", rx.RoomId, acctId)
+func (dis RoomDispatcher) FilterRobots(pos *engine.Position) {
+
+}
+
+func getChan(roomId, acctId string) (*netChan, error) {
+	chKey := fmt.Sprintf("%s#%s", roomId, acctId)
 	temp, ok := netChanMap.Load(chKey)
 	if !ok {
 		return nil, errors.New("not connected")
@@ -62,8 +67,8 @@ func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
 	//序列化 json
 	msg, _ := json.Marshal(packet)
 	//所有成员
-	for _, member := range dispatcher.members {
-		memberChan, err := dispatcher.GetPlayer(member.UId)
+	for _, member := range dispatcher.Players {
+		memberChan, err := getChan(dispatcher.RoomId, member.UId)
 		if err != nil {
 			continue
 		}
@@ -73,9 +78,9 @@ func Broadcast[T any](dispatcher *RoomDispatcher, packet *api.WebPacket[T]) {
 
 func BroadcastFunc[T any](dispatcher *RoomDispatcher, fn func(*api.Player) *api.WebPacket[T]) {
 	//所有成员
-	for _, member := range dispatcher.members {
+	for _, member := range dispatcher.Players {
 		packet := fn(member)
-		memberChan, err := dispatcher.GetPlayer(member.UId)
+		memberChan, err := getChan(dispatcher.RoomId, member.UId)
 		if err != nil {
 			continue
 		}
