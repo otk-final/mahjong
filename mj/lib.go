@@ -2,90 +2,41 @@ package mj
 
 import "sort"
 
-// Library 牌库
-var Library = Cards{
-	//筒
-	T1, T1, T1, T1,
-	T2, T2, T2, T2,
-	T3, T3, T3, T3,
-	T4, T4, T4, T4,
-	T5, T5, T5, T5,
-	T6, T6, T6, T6,
-	T7, T7, T7, T7,
-	T8, T8, T8, T8,
-	T9, T9, T9, T9,
-	//万
-	W1, W1, W1, W1,
-	W2, W2, W2, W2,
-	W3, W3, W3, W3,
-	W4, W4, W4, W4,
-	W5, W5, W5, W5,
-	W6, W6, W6, W6,
-	W7, W7, W7, W7,
-	W8, W8, W8, W8,
-	W9, W9, W9, W9,
-	//条
-	L1, L1, L1, L1,
-	L2, L2, L2, L2,
-	L3, L3, L3, L3,
-	L4, L4, L4, L4,
-	L5, L5, L5, L5,
-	L6, L6, L6, L6,
-	L7, L7, L7, L7,
-	L8, L8, L8, L8,
-	L9, L9, L9, L9,
-	//中发白
-	Zh, Zh, Zh, Zh,
-	Ba, Ba, Ba, Ba,
-	Fa, Fa, Fa, Fa,
-	//东南西北
-	EAST, EAST, EAST, EAST,
-	SOUTH, SOUTH, SOUTH, SOUTH,
-	WEST, WEST, WEST, WEST,
-	NORTH, NORTH, NORTH, NORTH,
-}
-
 type Card int
 type Cards []int
 
-var mjRangeLimit = map[CardKind][]int{
+var mjKindRange = map[Kind][]int{
 	WanCard:   {W1, W9},
 	TiaoCard:  {L1, L9},
 	TongCard:  {T1, T9},
-	WindCard:  {EAST, NORTH},
-	OtherCard: {Zh, Ba},
+	WindCard:  {EAST, SOUTH, WEST, NORTH},
+	OtherCard: {Zh, Fa, Ba},
 }
 
 // LoadLibrary 指定牌库
-func LoadLibrary(kinds ...CardKind) []int {
-	newLib := make([]int, 0)
+func LoadLibrary(kinds ...Kind) []int {
 
-	//copy
+	//全量
 	if len(kinds) == 0 {
-		return Library.Clone()
+		kinds = []Kind{WanCard, TiaoCard, TongCard, WindCard}
 	}
 
-	//filter
-	for _, tile := range Library {
-		kind := Card(tile).Kind()
-		limit, ok := mjRangeLimit[kind]
-		if !ok {
-			continue
-		}
-		if limit[0] <= tile && tile <= limit[1] {
-			newLib = append(newLib, tile)
+	newLib := make([]int, 0)
+	for _, choose := range kinds {
+		mjRange := mjKindRange[choose]
+		//非连续
+		if choose == WindCard || choose == OtherCard {
+			for i := 0; i < len(mjRange); i++ {
+				newLib = append(newLib, mjRange[i], mjRange[i], mjRange[i], mjRange[i])
+			}
+		} else {
+			//四张
+			for i := mjRange[0]; i <= mjRange[1]; i++ {
+				newLib = append(newLib, i, i, i, i)
+			}
 		}
 	}
 	return newLib
-}
-
-func (c Card) Kind() CardKind {
-	for k, v := range mjRangeLimit {
-		if v[0] <= int(c) && int(c) <= v[1] {
-			return k
-		}
-	}
-	return NilCard
 }
 
 func (c Cards) Remove(index ...int) Cards {

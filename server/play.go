@@ -138,7 +138,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	defer roundCtx.Lock.Unlock()
 
 	//游戏策略
-	var provider = ploy.BuildProvider(roundCtx)
+	var provider = ploy.RenewProvider(roundCtx)
 	eval, exist := provider.Handles()[body.RaceType]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
@@ -251,9 +251,8 @@ func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*ap
 
 func doRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview) ([]*api.RaceOption, error) {
 
-	//策略
-	var provider = ploy.BuildProvider(roundCtx)
-	handles := provider.Handles()
+	//策略集
+	var handles = ploy.RenewProvider(roundCtx).Handles()
 
 	//判定可用
 	items := make([]*api.RaceOption, 0)

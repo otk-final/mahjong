@@ -10,20 +10,20 @@ import (
 
 // GameDefine 游戏规则
 type GameDefine interface {
-	// InitCtx 初始化
-	InitCtx(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundOpsCtx
+	// InitOpsCtx 初始化
+	InitOpsCtx(setting *api.GameConfigure) engine.RoundOpsCtx
 	// Handles 策略集
-	Handles() map[api.RaceType]RaceEvaluate
+	Handles() map[api.RaceType]RaceEvaluator
 	// Renew 从上下文中恢复
-	Renew(ctx *engine.RoundCtx)
+	Renew(ctx *engine.RoundCtx) GameDefine
 	// Finish 结束
 	Finish()
 	// Quit 退出
 	Quit()
 }
 
-// RaceEvaluate 碰，吃，杠，胡...评估
-type RaceEvaluate interface {
+// RaceEvaluator 碰，吃，杠，胡...评估
+type RaceEvaluator interface {
 	// Eval 可行判断
 	Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards)
 }
@@ -32,7 +32,7 @@ func NewProvider(mode string) GameDefine {
 	switch mode {
 	case "std": //标准
 		return newBaseProvider()
-	case "lai": //赖子
+	case "LaiCollect": //赖子
 		return newLaiProvider()
 	case "k5x": //卡5星
 		break
@@ -46,28 +46,19 @@ func NewProvider(mode string) GameDefine {
 	return nil
 }
 
-func BuildProvider(roundCtx *engine.RoundCtx) GameDefine {
-	gc, _ := roundCtx.HandlerCtx().Configure()
-	var provider = NewProvider(gc.Mode)
-	provider.Renew(roundCtx)
-	return provider
+func RenewProvider(ctx *engine.RoundCtx) GameDefine {
+	return NewProvider(ctx.Configure().Mode).Renew(ctx)
 }
 
 type BaseRoundCtxHandler struct {
 	lock         sync.Mutex
-	gc           *api.GameConfigure
-	pc           *api.PaymentConfigure
+	setting      *api.GameConfigure
 	table        *engine.Table
 	tiles        map[int]*api.PlayerTiles
 	profits      map[int]*api.PlayerProfits
-	custom       map[string]any
 	recentAction engine.RecentAction //最近数据
 	recentIdx    int
 	recenter     map[int]*BaseRecenter
-}
-
-func (b *BaseRoundCtxHandler) Configure() (*api.GameConfigure, *api.PaymentConfigure) {
-	return b.gc, b.pc
 }
 
 func (b *BaseRoundCtxHandler) GetTiles(pIdx int) *api.PlayerTiles {

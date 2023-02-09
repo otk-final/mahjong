@@ -8,28 +8,26 @@ import (
 )
 
 type roomConfig struct {
-	roomId string
-	gc     *api.GameConfigure
-	pc     *api.PaymentConfigure
+	roomId  string
+	setting *api.GameConfigure
 }
 
 //缓存
 var roomConfigMap = &sync.Map{}
 
-func GetRoomConfig(roomId string) (*api.GameConfigure, *api.PaymentConfigure) {
+func GetRoomConfig(roomId string) *api.GameConfigure {
 	cfg, ok := roomConfigMap.Load(roomId)
 	if ok {
 		roomCfg := cfg.(*roomConfig)
-		return roomCfg.gc, roomCfg.pc
+		return roomCfg.setting
 	}
-	return nil, nil
+	return nil
 }
 
-func CreateRoom(roomId string, gc *api.GameConfigure, pc *api.PaymentConfigure) {
+func CreateRoom(roomId string, setting *api.GameConfigure) {
 	roomConfigMap.Store(roomId, &roomConfig{
-		roomId: roomId,
-		gc:     gc,
-		pc:     pc,
+		roomId:  roomId,
+		setting: setting,
 	})
 }
 

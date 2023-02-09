@@ -40,13 +40,13 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 		return nil, errors.New("待玩家就坐")
 	}
 	//游戏设置
-	gc, pc := store.GetRoomConfig(body.RoomId)
+	setting := store.GetRoomConfig(body.RoomId)
 
 	//每种玩法，独立逻辑处理
-	provider := ploy.NewProvider(gc.Mode)
+	provider := ploy.NewProvider(setting.Mode)
 
 	//前置事件 初始化牌库
-	roundCtxOps := provider.InitCtx(gc, pc)
+	roundCtxOps := provider.InitOpsCtx(setting)
 	startDispatcher := &RoomDispatcher{RoomId: body.RoomId, members: pos.Joined()}
 	notifyHandler := &BroadcastHandler{
 		provider:   provider,
@@ -58,7 +58,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 	exchanger.Run(notifyHandler, pos, turnInterval)
 
 	//注册缓存
-	store.RegisterRoundCtx(body.RoomId, pos, exchanger, roundCtxOps)
+	store.CreateRoundCtx(body.RoomId, setting, pos, exchanger, roundCtxOps)
 
 	//通知牌局开始
 	BroadcastFunc(startDispatcher, func(player *api.Player) *api.WebPacket[api.GamePayload] {

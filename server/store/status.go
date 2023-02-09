@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"mahjong/server/api"
 	"mahjong/server/engine"
 	"sync"
 )
@@ -23,7 +24,7 @@ func LoadRoundCtx(roomId string, acctId string) (*engine.RoundCtx, error) {
 	return ctx, nil
 }
 
-func RegisterRoundCtx(roomId string, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundOpsCtx) *engine.RoundCtx {
-	v, _ := roundCtxMap.LoadOrStore(roomId, engine.NewRoundCtx(0, pos, exchanger, handler))
+func CreateRoundCtx(roomId string, setting *api.GameConfigure, pos *engine.Position, exchanger *engine.Exchanger, handler engine.RoundOpsCtx) *engine.RoundCtx {
+	v, _ := roundCtxMap.LoadOrStore(roomId, engine.NewRoundCtx(0, setting, pos, exchanger, handler))
 	return v.(*engine.RoundCtx)
 }

@@ -10,40 +10,45 @@ import (
 
 // BaseProvider 标准
 type BaseProvider struct {
-	dice int //骰子数
 }
 
-func (bp *BaseProvider) Renew(ctx *engine.RoundCtx) {
-
+func (bp *BaseProvider) Renew(ctx *engine.RoundCtx) GameDefine {
+	return bp
 }
 
-func (bp *BaseProvider) InitCtx(gc *api.GameConfigure, pc *api.PaymentConfigure) engine.RoundOpsCtx {
+func (bp *BaseProvider) InitOpsCtx(setting *api.GameConfigure) engine.RoundOpsCtx {
+
+	//初始牌库 全量牌
+	mjLib := mj.LoadLibrary()
+
 	//创建上下文处理器
-	opsCtx := startRoundCtxHandler(engine.NewDice(), gc.Nums, mj.Library)
-	opsCtx.gc = gc
-	opsCtx.pc = pc
+	opsCtx := startRoundCtxHandler(setting.Nums, mjLib)
+	opsCtx.setting = setting
 	return opsCtx
 }
 
-func startRoundCtxHandler(dice int, players int, libs mj.Cards) *BaseRoundCtxHandler {
+func startRoundCtxHandler(players int, libs mj.Cards) *BaseRoundCtxHandler {
 
-	//掷骰子，洗牌，发牌
+	//掷骰
+	dice := engine.NewDice()
 
-	//全量牌
+	//洗牌
 	tiles := engine.Shuffle(libs)
 
-	//发牌
+	//开桌
 	tb := engine.NewTable(dice, tiles)
+
+	//发牌
 	members := tb.Distribution(players)
 
 	//添加到上下文
 	ctxOps := &BaseRoundCtxHandler{
-		lock:    sync.Mutex{},
+		lock: sync.Mutex{},
+		//玩家数据
 		table:   tb,
 		tiles:   make(map[int]*api.PlayerTiles, players),
 		profits: make(map[int]*api.PlayerProfits, players),
-		custom:  make(map[string]any, 0),
-
+		//最新数据
 		recentAction: -1,
 		recentIdx:    -1,
 		recenter:     make(map[int]*BaseRecenter, 0),
@@ -70,8 +75,8 @@ func (bp *BaseProvider) Quit() {
 
 }
 
-func (bp *BaseProvider) Handles() map[api.RaceType]RaceEvaluate {
-	return map[api.RaceType]RaceEvaluate{
+func (bp *BaseProvider) Handles() map[api.RaceType]RaceEvaluator {
+	return map[api.RaceType]RaceEvaluator{
 		api.DDDRace:         &dddEvaluation{},
 		api.ABCRace:         &abcEvaluation{},
 		api.EEEERace:        &eeeeEvaluation{},
@@ -87,6 +92,7 @@ func newBaseProvider() GameDefine {
 
 // 吃
 type abcEvaluation struct {
+	illegals mj.Cards
 }
 
 func isUpperIdx(mineIdx, whoIdx, members int) bool {
@@ -117,7 +123,7 @@ func RaceTilesMerge(race api.RaceType, tiles mj.Cards, tile int) mj.Cards {
 func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	//只能吃上家出的牌
-	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) {
+	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
 	effects := make([]mj.Cards, 0)
@@ -133,11 +139,12 @@ func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Card
 
 // 碰
 type dddEvaluation struct {
+	illegals mj.Cards
 }
 
 func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能碰自己打的牌
-	if raceIdx == whoIdx {
+	if raceIdx == whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
 	existLen := len(tiles.Indexes(tile))
@@ -149,11 +156,12 @@ func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Card
 
 // 杠（碰升级）
 type eeeeUpgradeEvaluation struct {
+	illegals mj.Cards
 }
 
 func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//自杠 从已判断中的牌检索
-	if raceIdx != whoIdx {
+	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
 	tileCtx := ctx.HandlerCtx().GetTiles(raceIdx)
@@ -170,10 +178,11 @@ func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles
 
 // 杠（自己）
 type eeeeOwnEvaluation struct {
+	illegals mj.Cards
 }
 
 func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-	if raceIdx != whoIdx {
+	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
 	existLen := len(tiles.Indexes(tile))
@@ -185,11 +194,12 @@ func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.
 
 // 杠（别人）
 type eeeeEvaluation struct {
+	illegals mj.Cards
 }
 
 func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能杠自己打的牌
-	if raceIdx == whoIdx {
+	if raceIdx == whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
 	existLen := len(tiles.Indexes(tile))
@@ -204,8 +214,12 @@ type winEvaluation struct {
 }
 
 func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-	hands := ctx.HandlerCtx().GetTiles(raceIdx).Hands.Clone()
-	hands = append(hands, tile)
+
+	hands := tiles.Clone()
+	//非自己手牌 合并目标牌后进行判定
+	if raceIdx != whoIdx {
+		hands = append(hands, tile)
+	}
 
 	//只有两张,判断是否为将牌
 	if len(hands) == 2 {

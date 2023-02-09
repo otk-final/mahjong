@@ -27,12 +27,6 @@ type JoinRoom struct {
 	RoomId string `json:"roomId"`
 }
 
-// CreateRoom 创建房间
-type CreateRoom struct {
-	Game    *GameConfigure    `json:"game"`
-	Payment *PaymentConfigure `json:"payment"`
-}
-
 // ExitRoom 退出房间
 type ExitRoom struct {
 	RoomId string `json:"room_id"`
@@ -50,12 +44,11 @@ type Player struct {
 
 // RoomInf 房间信息
 type RoomInf struct {
-	RoomId  string            `json:"roomId"`
-	Own     *Player           `json:"own"`
-	Players []*Player         `json:"players"`
-	Begin   bool              `json:"begin"`
-	Game    *GameConfigure    `json:"game"`
-	Payment *PaymentConfigure `json:"payment"`
+	RoomId  string         `json:"roomId"`
+	Own     *Player        `json:"own"`
+	Players []*Player      `json:"players"`
+	Begin   bool           `json:"begin"`
+	Config  *GameConfigure `json:"config"`
 }
 
 type GameParameter struct {

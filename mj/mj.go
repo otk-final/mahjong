@@ -1,10 +1,8 @@
 package mj
 
-type CardKind string
+type Kind string
 
-var NilCard CardKind = "nil"
-
-var WanCard CardKind = "wan"
+var WanCard Kind = "wan"
 
 //万 1 - 9
 const (
@@ -19,7 +17,7 @@ const (
 	W9
 )
 
-var TiaoCard CardKind = "tiao"
+var TiaoCard Kind = "tiao"
 
 //条 11 - 19
 const (
@@ -34,7 +32,7 @@ const (
 	L9
 )
 
-var TongCard CardKind = "tong"
+var TongCard Kind = "tong"
 
 //筒 21 - 29
 const (
@@ -49,7 +47,7 @@ const (
 	T9
 )
 
-var WindCard CardKind = "feng"
+var WindCard Kind = "feng"
 
 //风 31 - 37
 const (
@@ -59,7 +57,7 @@ const (
 	NORTH = 37
 )
 
-var OtherCard CardKind = "other"
+var OtherCard Kind = "other"
 
 //中发白 41 - 45
 const (

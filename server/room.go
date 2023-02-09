@@ -9,7 +9,7 @@ import (
 )
 
 // 创建房间
-func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.RoomInf, error) {
+func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*api.RoomInf, error) {
 
 	//用户信息
 	header := wrap.GetHeader(r)
@@ -24,10 +24,10 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 	roomId := roomIdGen()
 
 	//save 配置信息
-	store.CreateRoom(roomId, body.Game, body.Payment)
+	store.CreateRoom(roomId, body)
 
 	//设置庄家，虚位待坐 join
-	pos, _ := engine.NewPosition(body.Game.Nums, master)
+	pos, _ := engine.NewPosition(body.Nums, master)
 
 	//save 座位信息
 	store.CreatePosition(roomId, pos)
@@ -37,8 +37,7 @@ func create(w http.ResponseWriter, r *http.Request, body *api.CreateRoom) (*api.
 		RoomId:  roomId,
 		Own:     master,
 		Players: []*api.Player{},
-		Game:    body.Game,
-		Payment: body.Payment,
+		Config:  body,
 	}, nil
 }
 
@@ -71,7 +70,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		Ip:     r.RemoteAddr,
 	}
 	//房间信息
-	gc, pc := store.GetRoomConfig(body.RoomId)
+	setting := store.GetRoomConfig(body.RoomId)
 
 	//是否已就坐
 	exist, err := pos.Index(header.UserId)
@@ -98,8 +97,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		Own:     member,
 		Begin:   pos.TurnIdx() != -1,
 		Players: pos.Joined(),
-		Game:    gc,
-		Payment: pc,
+		Config:  setting,
 	}, nil
 }
 
