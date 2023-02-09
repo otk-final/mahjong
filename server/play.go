@@ -131,6 +131,12 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
 
+	//加锁防止并发操作
+	if !roundCtx.Lock.TryLock() {
+		return nil, errors.New("并发错误")
+	}
+	defer roundCtx.Lock.Unlock()
+
 	//游戏策略
 	var provider = ploy.BuildProvider(roundCtx)
 	eval, exist := provider.Handles()[body.RaceType]
@@ -155,7 +161,7 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 	}
 
 	//保存
-	roundCtx.HandlerCtx().AddRace(own.Idx, &engine.TileRaces{Tiles: body.Tiles.Clone(), TargetIdx: recentIdx, Tile: targetTile})
+	roundCtx.HandlerCtx().AddRace(own.Idx, body.RaceType, &engine.TileRaces{Tiles: body.Tiles.Clone(), TargetIdx: recentIdx, Tile: targetTile})
 
 	//通知
 	roundCtx.Exchange().PostRace(&api.RacePayload{
@@ -163,14 +169,14 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 		Who:      own.Idx,
 		Target:   recentIdx,
 		Round:    body.Round,
-		Tiles:    body.Tiles,
+		Tiles:    ploy.RaceTilesMerge(body.RaceType, body.Tiles, targetTile),
 		Tile:     targetTile,
 		Interval: turnInterval,
 	})
 
 	//后置事件
 	var usableRaces []*api.RaceOption
-	var nextTake int
+	var continueTake int
 	switch body.RaceType {
 	case api.EEEERace, api.LaiRace, api.GuiRace:
 		//从后往前摸牌
@@ -178,21 +184,21 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 		if takeResult.Take == -1 {
 			return nil, errors.New("游戏结束 平局")
 		}
-		nextTake = takeResult.Take
+		continueTake = takeResult.Take
 		//判定
 		usableRaces, err = doRacePre(roundCtx, own, &api.RacePreview{
 			RoomId: body.RoomId,
 			Round:  body.Round,
 			AckId:  -1,
 			Target: own.Idx,
-			Tile:   nextTake,
+			Tile:   continueTake,
 		})
 		if err != nil {
 			return nil, err
 		}
 		break
 	case api.ABCRace, api.DDDRace, api.CaoRace:
-		nextTake = -1
+		continueTake = -1
 		//吃，碰 , 朝 渲染出牌入口
 		usableRaces = append(usableRaces, &api.RaceOption{RaceType: api.PutRace, Tiles: nil})
 		break
@@ -202,9 +208,11 @@ func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api
 
 	//最新持牌
 	return &api.RaceResult{
-		PlayerTiles: roundCtx.HandlerCtx().GetTiles(own.Idx),
-		NextTake:    nextTake,
-		Options:     usableRaces,
+		PlayerTiles:  roundCtx.HandlerCtx().GetTiles(own.Idx),
+		ContinueTake: continueTake,
+		Options:      usableRaces,
+		Target:       recentIdx,
+		TargetTile:   targetTile,
 	}, nil
 }
 
@@ -287,7 +295,7 @@ func ignore(w http.ResponseWriter, r *http.Request, body *api.AckParameter) (*ap
 	roundCtx.Exchange().PostAck(&api.AckPayload{
 		Who:   own.Idx,
 		Round: body.Round,
-		AckId: body.AckId,
+		AckId: roundCtx.Exchange().CurrentAckId(),
 	})
 	return api.Empty, nil
 }

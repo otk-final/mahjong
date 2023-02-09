@@ -183,11 +183,12 @@ func (handler *BroadcastHandler) Win(event *api.RacePayload) {
 }
 
 func (handler *BroadcastHandler) Ack(event *api.AckPayload) {
+	log.Printf("忽略：%d %d", event.Who, event.AckId)
 	Broadcast(handler.dispatcher, api.Packet(api.AckEvent, "待确认", event))
 }
 
 func (handler *BroadcastHandler) Turn(who int, interval int, ok bool) {
-	log.Printf("当前回合：%d\n", who)
+	log.Printf("当前回合：%d %v", who, ok)
 	Broadcast(handler.dispatcher, api.Packet(api.TurnEvent, "轮转", &api.TurnPayload{Who: who, Interval: interval}))
 }
 

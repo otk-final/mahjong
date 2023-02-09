@@ -94,29 +94,30 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 
 	//堵塞监听
 	for {
-		log.Println("aa")
 		select {
 		case t := <-exc.takeCh:
 			//从摸牌开始，开始倒计时
-			cd.reset()
+			cd.restart(true)
 			//牌库摸完了 结束当前回合
 			if t.Tile == -1 {
 				handler.Quit(false)
 				return
 			}
 			handler.Take(t)
+			break
 		case p := <-exc.putCh:
 			//每当出一张牌，均需等待其他玩家确认或者抢占
 			p.AckId = aq.newAckId()
 			//出牌事件
 			handler.Put(p)
+			break
 		case r := <-exc.raceCh:
 			//抢占 碰，杠，吃，... 设置当前回合
 			pos.move(r.Who)
+			//开始倒计时
+			cd.restart(true)
 			//并清除待ack队列
 			aq.reset()
-			//重制定时器
-			cd.reset()
 			//胡牌则退出
 			if r.RaceType == api.WinRace {
 				handler.Win(r)
@@ -124,6 +125,7 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 			} else {
 				handler.Race(r)
 			}
+			break
 		case a := <-exc.ackCh:
 			//过期则忽略当前事件
 			if a.AckId < aq.incrId() {
@@ -133,14 +135,17 @@ func (exc *Exchanger) start(handler NotifyHandle, pos *Position, interval int) {
 			//就绪事件
 			if aq.ready(a.Who, a.AckId) {
 				//重置定时
-				cd.reset()
+				cd.restart(true)
 				//正常轮转下家
 				who := pos.next()
 				handler.Turn(who, interval, true)
 			}
+			break
 		case <-cd.timer.C:
 			//并清除待ack队列
 			aq.reset()
+			//倒计
+			cd.restart(false)
 			//超时，玩家无任何动作
 			who := pos.next()
 			//非正常轮转下家
@@ -185,14 +190,11 @@ func newCountdown(second int) *countdown {
 	}
 }
 
-func (c *countdown) reset() {
-	//下一次时间
-	c.nextTime = time.Now().Add(c.interval)
-	ok := c.timer.Reset(c.interval)
-	log.Printf("reset time %v", ok)
-}
-
-func (c *countdown) setNextTime() {
+func (c *countdown) restart(reset bool) {
+	if reset {
+		ok := c.timer.Reset(c.interval)
+		log.Printf("重置定时：%v", ok)
+	}
 	//下一次时间
 	c.nextTime = time.Now().Add(c.interval)
 }

@@ -48,7 +48,7 @@ var Library = Cards{
 type Card int
 type Cards []int
 
-var CardRangeMap = map[CardKind][]int{
+var mjRangeLimit = map[CardKind][]int{
 	WanCard:   {W1, W9},
 	TiaoCard:  {L1, L9},
 	TongCard:  {T1, T9},
@@ -61,24 +61,17 @@ func LoadLibrary(kinds ...CardKind) []int {
 	newLib := make([]int, 0)
 
 	//copy
-	temp := make([]int, len(Library))
-	copy(temp, Library)
-	filter := func(kind CardKind) bool {
-		for _, k := range kinds {
-			if k == kind {
-				return true
-			}
-		}
-		return false
+	if len(kinds) == 0 {
+		return Library.Clone()
 	}
 
 	//filter
-	for _, tile := range temp {
+	for _, tile := range Library {
 		kind := Card(tile).Kind()
-		if !filter(kind) {
+		limit, ok := mjRangeLimit[kind]
+		if !ok {
 			continue
 		}
-		limit := CardRangeMap[kind]
 		if limit[0] <= tile && tile <= limit[1] {
 			newLib = append(newLib, tile)
 		}
@@ -87,7 +80,7 @@ func LoadLibrary(kinds ...CardKind) []int {
 }
 
 func (c Card) Kind() CardKind {
-	for k, v := range CardRangeMap {
+	for k, v := range mjRangeLimit {
 		if v[0] <= int(c) && int(c) <= v[1] {
 			return k
 		}

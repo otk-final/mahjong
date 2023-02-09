@@ -120,24 +120,41 @@ func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 
 }
 
-func (b *BaseRoundCtxHandler) AddRace(pIdx int, tileRaces *engine.TileRaces) {
+func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces *engine.TileRaces) {
 	defer b.lock.Unlock()
 	b.lock.Lock()
 
 	own := b.tiles[pIdx]
-	//移除
+	//移除手上的牌
 	for _, t := range tileRaces.Tiles {
 		tIdx := own.Hands.Index(t)
 		own.Hands = own.Hands.Remove(tIdx)
 	}
 
-	race := append(tileRaces.Tiles, tileRaces.Tile)
-	sort.Ints(race)
-	own.Races = append(own.Races, race)
+	if raceType == api.EEEEUpgradeRace {
+		//杠（碰）覆盖原有的碰
+		for i := 0; i < len(own.Races); i++ {
+			ddd := own.Races[i].Indexes(tileRaces.Tile)
+			if len(ddd) != 3 {
+				continue
+			}
+			own.Races[i] = append(own.Races[i], tileRaces.Tile)
+		}
+	} else if raceType == api.ABCRace || raceType == api.DDDRace {
+		//吃，碰 别人
 
-	//移交
-	who := b.tiles[tileRaces.TargetIdx]
-	who.Outs = who.Outs[:len(who.Outs)-1]
+		//合并
+		races := append(tileRaces.Tiles, tileRaces.Tile)
+		sort.Ints(races)
+		own.Races = append(own.Races, races)
+
+		//移交
+		who := b.tiles[tileRaces.TargetIdx]
+		who.Outs = who.Outs[:len(who.Outs)-1]
+	} else {
+		//添加
+		own.Races = append(own.Races, tileRaces.Tiles)
+	}
 
 	b.recentIdx = pIdx
 	b.recentAction = engine.RecentRace

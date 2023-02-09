@@ -90,8 +90,10 @@ type RaceParameter struct {
 }
 type RaceResult struct {
 	*PlayerTiles
-	NextTake int           `json:"nextTake"`
-	Options  []*RaceOption `json:"options"`
+	ContinueTake int           `json:"continueTake"`
+	Target       int           `json:"target"`
+	TargetTile   int           `json:"targetTile"`
+	Options      []*RaceOption `json:"options"`
 }
 
 type RaceOption struct {
@@ -112,7 +114,6 @@ type RaceEffects struct {
 }
 
 type AckParameter struct {
-	*AckPayload
 	RoomId string `json:"roomId"`
 	Round  int    `json:"round"`
 }

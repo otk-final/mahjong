@@ -34,8 +34,12 @@ const (
 	DDDRace
 	// ABCRace 吃
 	ABCRace
-	// EEEERace 杠
+	// EEEERace 杠 （别人）
 	EEEERace
+	// EEEEUpgradeRace 杠（碰）
+	EEEEUpgradeRace
+	// EEEEOwnRace 杠（自己）
+	EEEEOwnRace
 	// LaiRace 癞
 	LaiRace
 	// CaoRace 朝

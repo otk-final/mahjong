@@ -9,6 +9,7 @@ import (
 )
 
 type RoundCtx struct {
+	Lock       *sync.Mutex
 	round      int
 	position   *Position
 	exchanger  *Exchanger
@@ -17,6 +18,7 @@ type RoundCtx struct {
 
 func NewRoundCtx(round int, pos *Position, exchanger *Exchanger, handlerCtx RoundOpsCtx) *RoundCtx {
 	return &RoundCtx{
+		Lock:       &sync.Mutex{},
 		round:      round,
 		position:   pos,
 		exchanger:  exchanger,
@@ -55,7 +57,7 @@ type RoundOpsCtx interface {
 
 	AddPut(pIdx int, tile int)
 
-	AddRace(pIdx int, target *TileRaces)
+	AddRace(pIdx int, raceType api.RaceType, target *TileRaces)
 
 	Forward(pIdx int) int
 

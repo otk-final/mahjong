@@ -72,10 +72,12 @@ func (bp *BaseProvider) Quit() {
 
 func (bp *BaseProvider) Handles() map[api.RaceType]RaceEvaluate {
 	return map[api.RaceType]RaceEvaluate{
-		api.DDDRace:  &dddEvaluation{},
-		api.ABCRace:  &abcEvaluation{},
-		api.EEEERace: &eeeeEvaluation{},
-		api.WinRace:  &winEvaluation{},
+		api.DDDRace:         &dddEvaluation{},
+		api.ABCRace:         &abcEvaluation{},
+		api.EEEERace:        &eeeeEvaluation{},
+		api.EEEEOwnRace:     &eeeeOwnEvaluation{},
+		api.EEEEUpgradeRace: &eeeeUpgradeEvaluation{},
+		api.WinRace:         &winEvaluation{},
 	}
 }
 
@@ -94,6 +96,22 @@ func isUpperIdx(mineIdx, whoIdx, members int) bool {
 		return true
 	}
 	return false
+}
+
+func RaceTilesMerge(race api.RaceType, tiles mj.Cards, tile int) mj.Cards {
+	switch race {
+	case api.CaoRace, api.ABCRace, api.DDDRace:
+		//合并
+		result := append(tiles.Clone(), tile)
+		sort.Ints(result)
+		return result
+	case api.EEEERace, api.EEEEOwnRace, api.EEEEUpgradeRace:
+		return mj.Cards{tile, tile, tile, tile}
+	case api.GuiRace, api.LaiRace:
+		//单牌
+		return mj.Cards{tile}
+	}
+	return mj.Cards{}
 }
 
 func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
@@ -118,57 +136,64 @@ type dddEvaluation struct {
 }
 
 func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-	//只剩一张 且 不能碰自己打的牌
-	if len(tiles) <= 1 || raceIdx == whoIdx {
+	//不能碰自己打的牌
+	if raceIdx == whoIdx {
 		return false, nil
 	}
-
-	//正序后，查询是否存在
-	sort.Ints(tiles)
-	tIdx := tiles.Index(tile)
-	if tIdx == -1 {
-		return false, nil
-	}
-	//共2张牌一样
-	ok := len(tiles) > tIdx+1 && tiles[tIdx+1] == tile
-	if ok {
+	existLen := len(tiles.Indexes(tile))
+	if existLen == 2 {
 		return true, []mj.Cards{{tile, tile}}
 	}
 	return false, nil
 }
 
-// 杠
+// 杠（碰升级）
+type eeeeUpgradeEvaluation struct {
+}
+
+func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+	//自杠 从已判断中的牌检索
+	if raceIdx != whoIdx {
+		return false, nil
+	}
+	tileCtx := ctx.HandlerCtx().GetTiles(raceIdx)
+	//检索 碰过的
+	races := tileCtx.Races
+	for i := 0; i < len(races); i++ {
+		existIdx := races[i].Indexes(tile)
+		if len(existIdx) == 3 {
+			return true, []mj.Cards{{tile}}
+		}
+	}
+	return false, nil
+}
+
+// 杠（自己）
+type eeeeOwnEvaluation struct {
+}
+
+func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+	if raceIdx != whoIdx {
+		return false, nil
+	}
+	existLen := len(tiles.Indexes(tile))
+	if existLen == 4 {
+		return true, []mj.Cards{{tile, tile, tile, tile}}
+	}
+	return false, nil
+}
+
+// 杠（别人）
 type eeeeEvaluation struct {
 }
 
 func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-
-	//自杠 从已判断中的牌检索
-	tileCtx := ctx.HandlerCtx().GetTiles(raceIdx)
+	//不能杠自己打的牌
 	if raceIdx == whoIdx {
-		//检索 碰过的
-		races := tileCtx.Races
-		for i := 0; i < len(races); i++ {
-			race := races[i]
-			if len(race) == 3 && (race[0] == tile && race[1] == tile && race[2] == tile) {
-				return true, []mj.Cards{{tile}}
-			}
-		}
 		return false, nil
 	}
-	//杠别人 从手牌中检索
-	if len(tiles) < 3 {
-		return false, nil
-	}
-
-	sort.Ints(tiles)
-	tIdx := tiles.Index(tile)
-	if tIdx == -1 {
-		return false, nil
-	}
-	//共3张牌一样
-	ok := len(tiles) > tIdx+2 && tiles[tIdx+1] == tile && tiles[tIdx+2] == tile
-	if ok {
+	existLen := len(tiles.Indexes(tile))
+	if existLen == 3 {
 		return true, []mj.Cards{{tile, tile, tile}}
 	}
 	return false, nil
@@ -197,13 +222,4 @@ func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Card
 		return true, out
 	}
 	return false, nil
-}
-
-//听
-type tingEvaluation struct {
-}
-
-func (eval *tingEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-	//TODO implement me
-	panic("implement me")
 }
