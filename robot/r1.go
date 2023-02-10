@@ -43,10 +43,12 @@ func (m *mindLevel1) Turn(event *api.TurnPayload, ok bool) {
 		Round:     0,
 		Direction: 1,
 	})
+	//摸什么打什么
+	put := &api.PutPayload{Who: m.roboter.Idx, Round: 0, Tile: takeResult.Take}
 	//延迟两秒出牌
-	time.AfterFunc(2*time.Second, func() {
+	time.AfterFunc(3*time.Second, func() {
 		service.DoPut(m.roundCtx, m.roboter.Player, &api.PutParameter{
-			PutPayload: &api.PutPayload{Who: m.roboter.Idx, Round: 0, Tile: takeResult.Take},
+			PutPayload: put,
 			RoomId:     m.roomId,
 		})
 	})

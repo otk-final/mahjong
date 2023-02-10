@@ -3,7 +3,7 @@ package ploy
 import (
 	"mahjong/mj"
 	"mahjong/server/api"
-	engine2 "mahjong/service/engine"
+	"mahjong/service/engine"
 	"sort"
 	"sync"
 )
@@ -12,11 +12,11 @@ import (
 type BaseProvider struct {
 }
 
-func (bp *BaseProvider) Renew(ctx *engine2.RoundCtx) GameDefine {
+func (bp *BaseProvider) Renew(ctx *engine.RoundCtx) GameDefine {
 	return bp
 }
 
-func (bp *BaseProvider) InitOperation(setting *api.GameConfigure) engine2.RoundOperation {
+func (bp *BaseProvider) InitOperation(setting *api.GameConfigure) engine.RoundOperation {
 
 	//初始牌库 全量牌
 	mjLib := mj.LoadLibrary()
@@ -30,13 +30,13 @@ func (bp *BaseProvider) InitOperation(setting *api.GameConfigure) engine2.RoundO
 func startRoundCtxHandler(players int, libs mj.Cards) *BaseRoundCtxHandler {
 
 	//掷骰
-	dice := engine2.NewDice()
+	dice := engine.NewDice()
 
 	//洗牌
-	tiles := engine2.Shuffle(libs)
+	tiles := engine.Shuffle(libs)
 
 	//开桌
-	tb := engine2.NewTable(dice, tiles)
+	tb := engine.NewTable(dice, tiles)
 
 	//发牌
 	members := tb.Distribution(players)
@@ -120,7 +120,7 @@ func RaceTilesMerge(race api.RaceType, tiles mj.Cards, tile int) mj.Cards {
 	return mj.Cards{}
 }
 
-func (eval *abcEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	//只能吃上家出的牌
 	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) || eval.illegals.Index(tile) != -1 {
@@ -142,7 +142,7 @@ type dddEvaluation struct {
 	illegals mj.Cards
 }
 
-func (eval *dddEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能碰自己打的牌
 	if raceIdx == whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
@@ -159,7 +159,7 @@ type eeeeUpgradeEvaluation struct {
 	illegals mj.Cards
 }
 
-func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//自杠 从已判断中的牌检索
 	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
@@ -181,7 +181,7 @@ type eeeeOwnEvaluation struct {
 	illegals mj.Cards
 }
 
-func (eval *eeeeOwnEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
 	}
@@ -197,7 +197,7 @@ type eeeeEvaluation struct {
 	illegals mj.Cards
 }
 
-func (eval *eeeeEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能杠自己打的牌
 	if raceIdx == whoIdx || eval.illegals.Index(tile) != -1 {
 		return false, nil
@@ -213,7 +213,7 @@ func (eval *eeeeEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Ca
 type winEvaluation struct {
 }
 
-func (eval *winEvaluation) Eval(ctx *engine2.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	hands := tiles.Clone()
 	//非自己手牌 合并目标牌后进行判定

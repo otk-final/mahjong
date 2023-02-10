@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/server/wrap"
 	"mahjong/service"
@@ -77,19 +76,6 @@ func put(w http.ResponseWriter, r *http.Request, body *api.PutParameter) (*api.P
 	return service.DoPut(roundCtx, own, body), nil
 }
 
-func matchRacePlan(target mj.Cards, plans []mj.Cards) bool {
-	if len(plans) == 0 {
-		return false
-	}
-	//满足一项即可
-	for _, p := range plans {
-		if p.Equal(target) {
-			return true
-		}
-	}
-	return false
-}
-
 //  吃碰杠...
 func race(w http.ResponseWriter, r *http.Request, body *api.RaceParameter) (*api.RaceResult, error) {
 
@@ -154,7 +140,6 @@ func ignore(w http.ResponseWriter, r *http.Request, body *api.AckParameter) (*ap
 	}
 	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
-
 	return service.DoIgnore(roundCtx, own, body)
 }
 

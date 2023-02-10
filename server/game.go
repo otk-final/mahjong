@@ -172,6 +172,11 @@ func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) (*a
 	if err != nil {
 		return nil, err
 	}
-	pos.EnableRobot(joinPlayer, body.Level)
+
+	if body.Open {
+		pos.RobotOpen(joinPlayer, body.Level)
+	} else {
+		pos.RobotClosed(joinPlayer)
+	}
 	return api.Empty, nil
 }

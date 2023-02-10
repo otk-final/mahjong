@@ -16,19 +16,20 @@ type Position struct {
 	robots  map[int]*api.Roboter
 }
 
-func (pos *Position) EnableRobot(p *api.Player, level int) {
+func (pos *Position) RobotClosed(p *api.Player) {
 	//同步
 	defer pos.lock.Unlock()
 	pos.lock.Lock()
 
-	if level == -1 {
-		delete(pos.robots, p.Idx)
-	} else {
-		pos.robots[p.Idx] = &api.Roboter{
-			Player: p,
-			Level:  0,
-		}
-	}
+	delete(pos.robots, p.Idx)
+}
+
+func (pos *Position) RobotOpen(p *api.Player, level int) {
+	//同步
+	defer pos.lock.Unlock()
+	pos.lock.Lock()
+
+	pos.robots[p.Idx] = &api.Roboter{Player: p, Level: level}
 }
 
 func (pos *Position) IsRobot(pIdx int) (bool, *api.Roboter) {
@@ -47,6 +48,7 @@ func NewPosition(num int, master *api.Player) (*Position, error) {
 		num:     num,
 		master:  master,
 		members: []*api.Player{master},
+		robots:  make(map[int]*api.Roboter, 0),
 	}, nil
 }
 

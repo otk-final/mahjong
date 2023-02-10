@@ -134,6 +134,7 @@ type GameInf struct {
 
 type RobotParameter struct {
 	RoomId string `json:"roomId"`
+	Open   bool   `json:"open"`
 	Level  int    `json:"level"`
 }
 

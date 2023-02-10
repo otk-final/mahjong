@@ -2,11 +2,13 @@ package robot
 
 import (
 	"mahjong/server/api"
+	"mahjong/service/engine"
 )
 
 type mindLevel3 struct {
-	roomId  string
-	roboter *api.Roboter
+	roomId   string
+	roboter  *api.Roboter
+	roundCtx *engine.RoundCtx
 }
 
 func (m *mindLevel3) Take(event *api.TakePayload) {

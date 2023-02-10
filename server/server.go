@@ -23,7 +23,7 @@ func Apis() http.Handler {
 	room.Path("/exit").HandlerFunc(wrap.NewWrapper(exit).Func())
 
 	//游戏
-	game := muxRouter.Methods("POST").PathPrefix("/service").Subrouter()
+	game := muxRouter.Methods("POST").PathPrefix("/game").Subrouter()
 	game.Path("/start").HandlerFunc(wrap.NewWrapper(start).Func())
 	game.Path("/load").HandlerFunc(wrap.NewWrapper(load).Func())
 	game.Path("/robot").HandlerFunc(wrap.NewWrapper(robot).Func())
