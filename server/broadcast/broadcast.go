@@ -85,6 +85,11 @@ func (h *Handler) Ack(event *api.AckPayload) {
 }
 
 func (h *Handler) Turn(event *api.TurnPayload, ok bool) {
+	//触发摸牌
+	//
+	//roundCtx, _ := store.LoadRoundCtx("", "")
+	//service.DoTake(roundCtx, nil, nil)
+
 	packet := api.Packet(api.TurnEvent, "轮转", event)
 	//判定是否托管
 	if ok, roboter := h.isRobot(event.Who); ok {

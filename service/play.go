@@ -3,9 +3,9 @@ package service
 import (
 	"errors"
 	"mahjong/mj"
-	"mahjong/ploy"
 	"mahjong/server/api"
 	"mahjong/service/engine"
+	ploy2 "mahjong/service/ploy"
 )
 
 func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter) *api.TakeResult {
@@ -58,7 +58,7 @@ func matchRacePlan(target mj.Cards, plans []mj.Cards) bool {
 
 func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter) (*api.RaceResult, error) {
 	//游戏策略
-	var provider = ploy.RenewProvider(roundCtx)
+	var provider = ploy2.RenewProvider(roundCtx)
 	eval, exist := provider.Handles()[body.RaceType]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
@@ -89,7 +89,7 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 		Who:      own.Idx,
 		Target:   recentIdx,
 		Round:    body.Round,
-		Tiles:    ploy.RaceTilesMerge(body.RaceType, body.Tiles, targetTile),
+		Tiles:    ploy2.RaceTilesMerge(body.RaceType, body.Tiles, targetTile),
 		Tile:     targetTile,
 		Interval: api.TurnInterval,
 	})
@@ -139,7 +139,7 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 func DoRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview) ([]*api.RaceOption, error) {
 
 	//策略集
-	var handles = ploy.RenewProvider(roundCtx).Handles()
+	var handles = ploy2.RenewProvider(roundCtx).Handles()
 	ops := roundCtx.Operating()
 	//判定可用
 	items := make([]*api.RaceOption, 0)
@@ -180,7 +180,7 @@ func DoIgnore(roundCtx *engine.RoundCtx, own *api.Player, body *api.AckParameter
 func DoWin(roundCtx *engine.RoundCtx, own *api.Player, body *api.WinParameter) (*api.WinResult, error) {
 
 	//游戏策略
-	var provider = ploy.RenewProvider(roundCtx)
+	var provider = ploy2.RenewProvider(roundCtx)
 	winEval, exist := provider.Handles()[api.WinRace]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
