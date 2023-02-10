@@ -63,7 +63,6 @@ type GameParameter struct {
 
 type TakeParameter struct {
 	RoomId    string `json:"roomId"`
-	Round     int    `json:"round"`
 	Direction int    `json:"direction"`
 }
 type TakeResult struct {
@@ -82,7 +81,6 @@ type PutResult struct {
 }
 type RaceParameter struct {
 	RoomId   string   `json:"roomId"`
-	Round    int      `json:"round"`
 	RaceType RaceType `json:"raceType"`
 	Tiles    mj.Cards `json:"tiles"`
 }
@@ -99,8 +97,6 @@ type RaceOption struct {
 }
 type RacePreview struct {
 	RoomId string `json:"roomId"`
-	Round  int    `json:"round"`
-	AckId  int    `json:"ackId"`
 	Target int    `json:"target"`
 	Tile   int    `json:"tile"`
 }
@@ -111,7 +107,6 @@ type RaceEffects struct {
 
 type WinParameter struct {
 	RoomId string `json:"roomId"`
-	Round  int    `json:"round"`
 }
 type WinResult struct {
 	*WinPayload
@@ -119,7 +114,6 @@ type WinResult struct {
 
 type AckParameter struct {
 	RoomId string `json:"roomId"`
-	Round  int    `json:"round"`
 }
 
 type GameQuery struct {

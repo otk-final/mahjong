@@ -137,7 +137,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 			Target: recentIdx,
 			Tile:   raceTile,
 		}
-		usableRaces, err = service.DoRacePre(roundCtx, own, raceQuery)
+		usableRaces = service.DoRacePre(roundCtx, own, raceQuery)
 	} else {
 		//如果是本回合，兜底显示出牌入口
 		if turnIdx == own.Idx {

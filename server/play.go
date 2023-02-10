@@ -6,6 +6,7 @@ import (
 	"mahjong/server/wrap"
 	"mahjong/service"
 	"mahjong/service/engine"
+	"mahjong/service/ploy"
 	"mahjong/service/store"
 	"net/http"
 )
@@ -39,17 +40,11 @@ func take(w http.ResponseWriter, r *http.Request, body *api.TakeParameter) (*api
 	}
 
 	//判定
-	options, err := service.DoRacePre(roundCtx, own, &api.RacePreview{
+	takeResult.Options = service.DoRacePre(roundCtx, own, &api.RacePreview{
 		RoomId: body.RoomId,
-		Round:  body.Round,
-		AckId:  -1,
 		Target: own.Idx,
 		Tile:   takeResult.Take,
 	})
-	if err != nil {
-		return nil, err
-	}
-	takeResult.Options = options
 	return takeResult, nil
 }
 
@@ -73,6 +68,11 @@ func put(w http.ResponseWriter, r *http.Request, body *api.PutParameter) (*api.P
 	if recentOps != nil && recentOps.Action() == engine.RecentPut {
 		return nil, errors.New("不允许重复出牌")
 	}
+
+	if !ploy.RenewProvider(roundCtx).CanPut(own.Idx, body.Tile) {
+		return nil, errors.New("不允许单独出牌")
+	}
+
 	return service.DoPut(roundCtx, own, body), nil
 }
 
@@ -120,13 +120,9 @@ func racePre(w http.ResponseWriter, r *http.Request, body *api.RacePreview) (*ap
 	//取内存数据
 	body.Target = recentIdx
 	body.Tile = targetTile
-	body.AckId = roundCtx.Exchange().CurrentAckId()
 
 	//可用判定查询
-	items, err := service.DoRacePre(roundCtx, own, body)
-	if err != nil {
-		return nil, err
-	}
+	items := service.DoRacePre(roundCtx, own, body)
 	return &api.RaceEffects{Options: items}, nil
 }
 
@@ -138,9 +134,10 @@ func ignore(w http.ResponseWriter, r *http.Request, body *api.AckParameter) (*ap
 	if err != nil {
 		return nil, err
 	}
-	//玩家信息
 	own, _ := roundCtx.Player(header.UserId)
-	return service.DoIgnore(roundCtx, own, body)
+	//忽略
+	service.DoIgnore(roundCtx, own)
+	return api.Empty, nil
 }
 
 //  胡牌
@@ -159,5 +156,5 @@ func win(w http.ResponseWriter, r *http.Request, body *api.WinParameter) (*api.W
 	defer roundCtx.Lock.Unlock()
 	roundCtx.Lock.Lock()
 
-	return service.DoWin(roundCtx, own, body)
+	return service.DoWin(roundCtx, own)
 }

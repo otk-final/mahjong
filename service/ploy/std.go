@@ -12,6 +12,10 @@ import (
 type BaseProvider struct {
 }
 
+func (bp *BaseProvider) CanPut(pIdx int, tile int) bool {
+	return true
+}
+
 func (bp *BaseProvider) Renew(ctx *engine.RoundCtx) GameDefine {
 	return bp
 }
@@ -182,12 +186,24 @@ type eeeeOwnEvaluation struct {
 }
 
 func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
+	if raceIdx != whoIdx {
 		return false, nil
 	}
-	existLen := len(tiles.Indexes(tile))
-	if existLen == 4 {
-		return true, []mj.Cards{{tile, tile, tile, tile}}
+	//数量分组
+	counts := make(map[int]int, 0)
+	for _, t := range tiles {
+		counts[t] = counts[t] + 1
+	}
+
+	hasGangs := make([]mj.Cards, 0)
+	for k, v := range counts {
+		if v < 4 || eval.illegals.Index(k) != -1 {
+			continue
+		}
+		hasGangs = append(hasGangs, mj.Cards{k, k, k, k})
+	}
+	if len(hasGangs) > 0 {
+		return true, hasGangs
 	}
 	return false, nil
 }

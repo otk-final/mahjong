@@ -28,22 +28,19 @@ type WebPacket[T any] struct {
 
 type TakePayload struct {
 	Who      int `json:"who"`
-	Round    int `json:"round"`
 	Tile     int `json:"tile"`
 	Remained int `json:"remained"`
 }
 
 type PutPayload struct {
-	Who   int `json:"who"`
-	Round int `json:"round"`
-	Tile  int `json:"tile"`
+	Who  int `json:"who"`
+	Tile int `json:"tile"`
 }
 
 type RacePayload struct {
 	RaceType RaceType `json:"raceType"`
 	Who      int      `json:"who"`
 	Target   int      `json:"target"`
-	Round    int      `json:"round"`
 	Tiles    mj.Cards `json:"tiles"`
 	Tile     int      `json:"tile"`
 	Interval int      `json:"interval"`
@@ -52,14 +49,12 @@ type WinPayload struct {
 	Who    int          `json:"who"`
 	Target int          `json:"target"`
 	Tile   int          `json:"tile"`
-	Round  int          `json:"round"`
 	Tiles  *PlayerTiles `json:"tiles"`
 	Effect RaceType     `json:"effect"`
 }
 
 type AckPayload struct {
 	Who   int `json:"who"`
-	Round int `json:"round"`
 	AckId int `json:"ackId"`
 }
 
@@ -70,7 +65,6 @@ type TurnPayload struct {
 
 type JoinPayload struct {
 	NewPlayer *Player `json:"newPlayer"`
-	Round     int     `json:"round"`
 }
 
 type GamePayload struct {

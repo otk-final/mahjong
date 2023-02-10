@@ -5,7 +5,7 @@ import (
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/service/engine"
-	ploy2 "mahjong/service/ploy"
+	"mahjong/service/ploy"
 )
 
 func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter) *api.TakeResult {
@@ -21,7 +21,7 @@ func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter)
 	//剩余牌
 	takeRemained := ops.Remained()
 	//通知
-	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Round: body.Round, Tile: 0, Remained: takeRemained})
+	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: 0, Remained: takeRemained})
 
 	return &api.TakeResult{
 		PlayerTiles: ops.GetTiles(own.Idx),
@@ -58,7 +58,7 @@ func matchRacePlan(target mj.Cards, plans []mj.Cards) bool {
 
 func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter) (*api.RaceResult, error) {
 	//游戏策略
-	var provider = ploy2.RenewProvider(roundCtx)
+	var provider = ploy.RenewProvider(roundCtx)
 	eval, exist := provider.Handles()[body.RaceType]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
@@ -88,8 +88,7 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 		RaceType: body.RaceType,
 		Who:      own.Idx,
 		Target:   recentIdx,
-		Round:    body.Round,
-		Tiles:    ploy2.RaceTilesMerge(body.RaceType, body.Tiles, targetTile),
+		Tiles:    ploy.RaceTilesMerge(body.RaceType, body.Tiles, targetTile),
 		Tile:     targetTile,
 		Interval: api.TurnInterval,
 	})
@@ -101,16 +100,14 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 	switch body.RaceType {
 	case api.EEEERace, api.LaiRace, api.GuiRace:
 		//从后往前摸牌
-		takeResult := DoTake(roundCtx, own, &api.TakeParameter{RoomId: body.RoomId, Round: body.Round, Direction: -1})
+		takeResult := DoTake(roundCtx, own, &api.TakeParameter{RoomId: body.RoomId, Direction: -1})
 		if takeResult.Take == -1 {
 			return nil, errors.New("游戏结束 平局")
 		}
 		continueTake = takeResult.Take
 		//判定
-		usableRaces, err = DoRacePre(roundCtx, own, &api.RacePreview{
+		usableRaces = DoRacePre(roundCtx, own, &api.RacePreview{
 			RoomId: body.RoomId,
-			Round:  body.Round,
-			AckId:  -1,
 			Target: own.Idx,
 			Tile:   continueTake,
 		})
@@ -136,10 +133,10 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 	}, nil
 }
 
-func DoRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview) ([]*api.RaceOption, error) {
+func DoRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview) []*api.RaceOption {
 
 	//策略集
-	var handles = ploy2.RenewProvider(roundCtx).Handles()
+	var handles = ploy.RenewProvider(roundCtx).Handles()
 	ops := roundCtx.Operating()
 	//判定可用
 	items := make([]*api.RaceOption, 0)
@@ -157,30 +154,26 @@ func DoRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview
 		items = append(items, &api.RaceOption{RaceType: api.PutRace})
 	} else {
 		//他人回合
-		if len(items) > 0 { //如果有可选项，则添加忽略操作
+		if len(items) == 0 {
+			//如果有可选项，则添加忽略操作
 			items = append(items, &api.RaceOption{RaceType: api.PassRace})
 		} else {
 			//无可选，直接回执忽略事件
-			roundCtx.Exchange().PostAck(&api.AckPayload{Who: own.Idx, Round: body.Round, AckId: body.AckId})
+			DoIgnore(roundCtx, own)
 		}
 	}
-	return items, nil
+	return items
 }
 
-func DoIgnore(roundCtx *engine.RoundCtx, own *api.Player, body *api.AckParameter) (*api.NoResp, error) {
+func DoIgnore(roundCtx *engine.RoundCtx, own *api.Player) {
 	//通知
-	roundCtx.Exchange().PostAck(&api.AckPayload{
-		Who:   own.Idx,
-		Round: body.Round,
-		AckId: roundCtx.Exchange().CurrentAckId(),
-	})
-	return api.Empty, nil
+	roundCtx.Exchange().PostAck(&api.AckPayload{Who: own.Idx, AckId: roundCtx.Exchange().CurrentAckId()})
 }
 
-func DoWin(roundCtx *engine.RoundCtx, own *api.Player, body *api.WinParameter) (*api.WinResult, error) {
+func DoWin(roundCtx *engine.RoundCtx, own *api.Player) (*api.WinResult, error) {
 
 	//游戏策略
-	var provider = ploy2.RenewProvider(roundCtx)
+	var provider = ploy.RenewProvider(roundCtx)
 	winEval, exist := provider.Handles()[api.WinRace]
 	if !exist {
 		return nil, errors.New("不支持当前操作")
@@ -209,7 +202,6 @@ func DoWin(roundCtx *engine.RoundCtx, own *api.Player, body *api.WinParameter) (
 	//通知
 	winPayload := &api.WinPayload{
 		Who:    own.Idx,
-		Round:  body.Round,
 		Tiles:  ops.GetTiles(own.Idx),
 		Target: recentIdx,
 		Tile:   targetTile,

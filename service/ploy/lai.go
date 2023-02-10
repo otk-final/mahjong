@@ -33,6 +33,10 @@ type LaiRoundCtxHandler struct {
 	Gui int
 }
 
+func (lp *LaiProvider) CanPut(pIdx int, tile int) bool {
+	return lp.tileGui != tile && lp.tileLai != tile
+}
+
 func (lp *LaiProvider) Renew(ctx *engine.RoundCtx) GameDefine {
 	ctxHandler := ctx.Operating().(*LaiRoundCtxHandler)
 	lp.tileLai = ctxHandler.Lai
@@ -132,15 +136,15 @@ type fixWithLai struct {
 
 func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//只能自杠
-	if raceIdx != whoIdx || eval.tile != tile {
+	if raceIdx != whoIdx {
 		return false, nil
 	}
 	//是否存在
-	exist := tiles.Index(tile)
+	exist := tiles.Index(eval.tile)
 	if exist != -1 {
 		return false, nil
 	}
-	return true, []mj.Cards{{tile}}
+	return true, []mj.Cards{{eval.tile}}
 }
 
 type winWithLai struct {

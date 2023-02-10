@@ -5,6 +5,8 @@ import (
 	"mahjong/service/engine"
 )
 
+//智能
+
 type mindLevel3 struct {
 	roomId   string
 	roboter  *api.Roboter

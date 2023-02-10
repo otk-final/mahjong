@@ -10,6 +10,8 @@ import (
 
 // GameDefine 游戏规则
 type GameDefine interface {
+	// CanPut 可以除的牌
+	CanPut(pIdx int, tile int) bool
 	// InitOperation 初始化
 	InitOperation(setting *api.GameConfigure) engine.RoundOperation
 	// Handles 策略集
