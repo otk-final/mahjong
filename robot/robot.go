@@ -43,9 +43,9 @@ func init() {
 			case e := <-robotCh1:
 				route(&mindLevel1{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
 			case e := <-robotCh2:
-				route(&mindLevel2{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
+				route(&mindLevel1{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
 			case e := <-robotCh3:
-				route(&mindLevel3{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
+				route(&mindLevel1{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
 			case <-time.After(5 * time.Second):
 			}
 		}

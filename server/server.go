@@ -21,6 +21,7 @@ func Apis() http.Handler {
 	room.Path("/create").HandlerFunc(wrap.NewWrapper(create).Func())
 	room.Path("/join").HandlerFunc(wrap.NewWrapper(join).Func())
 	room.Path("/exit").HandlerFunc(wrap.NewWrapper(exit).Func())
+	room.Path("/compute").HandlerFunc(wrap.NewWrapper(compute).Func())
 
 	//游戏
 	game := muxRouter.Methods("POST").PathPrefix("/game").Subrouter()

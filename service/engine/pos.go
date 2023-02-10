@@ -37,18 +37,40 @@ func (pos *Position) IsRobot(pIdx int) (bool, *api.Roboter) {
 	return ok, level
 }
 
-func NewPosition(num int, master *api.Player) (*Position, error) {
-	//虚位以待 join
-	if master.Idx >= num {
-		return nil, errors.New("master idx error")
+func NewPosition(num int, members ...*api.Player) (*Position, error) {
+	if len(members) == 0 || len(members) > num {
+		return nil, errors.New("not master or over num")
 	}
 	return &Position{
 		lock:    &sync.Mutex{},
 		turnIdx: -1,
 		num:     num,
-		master:  master,
-		members: []*api.Player{master},
+		master:  members[0],
+		members: members,
 		robots:  make(map[int]*api.Roboter, 0),
+	}, nil
+}
+
+func NewPositionRobots(num int, master *api.Player, robot ...*api.Roboter) (*Position, error) {
+	//成员
+	members := []*api.Player{master}
+	robots := make(map[int]*api.Roboter, 0)
+	for _, r := range robot {
+		robots[r.Idx] = r
+		members = append(members, r.Player)
+	}
+
+	if len(members) > num {
+		return nil, errors.New("over num")
+	}
+
+	return &Position{
+		lock:    &sync.Mutex{},
+		turnIdx: -1,
+		num:     num,
+		master:  master,
+		members: members,
+		robots:  robots,
 	}, nil
 }
 

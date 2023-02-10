@@ -1,6 +1,9 @@
 package server
 
 import (
+	"fmt"
+	"github.com/google/uuid"
+	"hash/crc32"
 	"mahjong/server/api"
 	"mahjong/server/broadcast"
 	"mahjong/server/wrap"
@@ -44,9 +47,8 @@ func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*a
 
 // 生成房间号
 func roomIdGen() string {
-	//id := crc32.ChecksumIEEE([]byte(uuid.New().String()))
-	//return fmt.Sprintf("%d", id)
-	return "100"
+	id := crc32.ChecksumIEEE([]byte(uuid.New().String()))
+	return fmt.Sprintf("%d", id)
 }
 
 //  加入房间
@@ -103,4 +105,39 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.NoResp, error) {
 
 	return api.Empty, nil
+}
+
+//人机对战
+func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*api.RoomInf, error) {
+	//创建房间
+	header := wrap.GetHeader(r)
+	//生成房间号
+	roomId := roomIdGen()
+	store.CreateRoom(roomId, body)
+
+	//设置座位 庄家 + 机器人
+	master := &api.Player{
+		Idx:   0,
+		UId:   header.UserId,
+		UName: header.UserName,
+		Alias: "庄家",
+	}
+	robots := make([]*api.Roboter, 0)
+	for i := 0; i < body.Nums-1; i++ {
+		roboter := &api.Roboter{
+			Player: &api.Player{Idx: i + 1, UId: "robot1", UName: fmt.Sprintf("机器人%d号", i+1), Alias: "闲家"},
+			Level:  i + 1,
+		}
+		robots = append(robots, roboter)
+	}
+	pos, _ := engine.NewPositionRobots(body.Nums, master, robots...)
+	store.CreatePosition(roomId, pos)
+
+	return &api.RoomInf{
+		RoomId:  roomId,
+		Own:     master,
+		Begin:   pos.TurnIdx() != -1,
+		Players: pos.Joined(),
+		Config:  body,
+	}, nil
 }
