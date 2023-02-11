@@ -64,8 +64,8 @@ func (lp *LaiProvider) InitOperation(setting *api.GameConfigure) engine.RoundOpe
 		if cao != mj.Zh {
 			break
 		}
-		//todo 将牌放回原初
-		//handler.table.
+		//将牌放回末尾
+		handler.table.Append(cao)
 	}
 
 	//从前摸张牌，当前牌为朝天，下一张为癞牌

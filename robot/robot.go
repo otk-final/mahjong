@@ -68,8 +68,6 @@ func Post[T any](roomId string, roboter *api.Roboter, packet *api.WebPacket[T]) 
 	} else if roboter.Level == 2 {
 		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 3 {
-		//l1 := &mindLevel1{minder: dm}
-		//l2 := &mindLevel2{minder: dm}
 		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	}
 }

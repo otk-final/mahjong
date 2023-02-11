@@ -61,6 +61,13 @@ func (tb *Table) Distribution(num int) map[int]mj.Cards {
 	return members
 }
 
+func (tb *Table) Append(tile ...int) {
+	defer tb.lock.Unlock()
+	tb.lock.Lock()
+
+	tb.remains = append(tb.remains, tile...)
+}
+
 func (tb *Table) Forward() int {
 	defer tb.lock.Unlock()
 	tb.lock.Lock()

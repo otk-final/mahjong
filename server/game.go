@@ -99,7 +99,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	userTiles := make([]*api.PlayerTiles, 0)
 	for _, user := range joined {
 		//非自己的牌，查询是否选择明牌
-		tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(own.Idx == user.Idx)
+		tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(own.Idx == own.Idx)
 		userTiles = append(userTiles, tiles)
 	}
 

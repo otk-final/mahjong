@@ -115,46 +115,52 @@ func (b *BaseRoundCtxHandler) AddPut(pIdx int, tile int) {
 
 }
 
-func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces *engine.TileRaces) {
+func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces *engine.TileRaces) mj.Cards {
 	defer b.lock.Unlock()
 	b.lock.Lock()
 
 	own := b.tiles[pIdx]
-	//移除手上的牌
+	//移除自己手上的牌
 	for _, t := range tileRaces.Tiles {
 		tIdx := own.Hands.Index(t)
 		own.Hands = own.Hands.Remove(tIdx)
 	}
 
+	//合并判定牌
+	var raceIntact mj.Cards
+	if pIdx == tileRaces.TargetIdx {
+		//自己的牌
+		raceIntact = tileRaces.Tiles
+	} else {
+		//别人的牌
+		raceIntact = append(tileRaces.Tiles, tileRaces.Tile)
+		sort.Ints(raceIntact)
+
+		//移除目标out
+		who := b.tiles[tileRaces.TargetIdx]
+		lastedIdx := len(who.Outs) - 1
+		who.Outs[lastedIdx] = who.Outs[lastedIdx] * -1
+	}
+
+	//如果是碰后再杠，则替换原数据
 	if raceType == api.EEEEUpgradeRace {
-		//杠（碰）覆盖原有的碰
 		for i := 0; i < len(own.Races); i++ {
-			ddd := own.Races[i].Indexes(tileRaces.Tile)
-			if len(ddd) != 3 {
+			raceItem := own.Races[i]
+			if !raceItem.IsDDD() {
 				continue
 			}
-			own.Races[i] = append(own.Races[i], tileRaces.Tile)
+			own.Races[i] = append(raceItem, raceIntact[0])
 		}
-	} else if raceType == api.ABCRace || raceType == api.DDDRace {
-		//吃，碰 别人
-
-		//合并
-		races := append(tileRaces.Tiles, tileRaces.Tile)
-		sort.Ints(races)
-		own.Races = append(own.Races, races)
-
-		//移交
-		who := b.tiles[tileRaces.TargetIdx]
-		who.Outs = who.Outs[:len(who.Outs)-1]
 	} else {
-		//添加
-		own.Races = append(own.Races, tileRaces.Tiles)
+		own.Races = append(own.Races, raceIntact)
 	}
 
 	b.recentIdx = pIdx
 	b.recentAction = engine.RecentRace
 	b.recenter[pIdx].action = engine.RecentRace
 	b.recenter[pIdx].race = tileRaces
+
+	return raceIntact
 }
 
 func (b *BaseRoundCtxHandler) Forward(pIdx int) int {

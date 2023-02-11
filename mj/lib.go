@@ -112,3 +112,25 @@ func (c Cards) Equal(dest Cards) bool {
 	}
 	return true
 }
+
+func (c Cards) IsDDD() bool {
+	if len(c) != 3 {
+		return false
+	}
+	return c[0] == c[1] && c[1] == c[2]
+}
+
+func (c Cards) IsEEEE() bool {
+	if len(c) != 4 {
+		return false
+	}
+	return c[0] == c[1] && c[1] == c[2] && c[2] == c[3]
+}
+
+func (c Cards) IsABC() bool {
+	if len(c) != 3 {
+		return false
+	}
+	sort.Ints(c)
+	return c[0]+1 == c[1] && c[1]+1 == c[2]
+}

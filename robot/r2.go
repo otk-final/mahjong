@@ -41,6 +41,7 @@ func (m *mindLevel2) Turn(event *api.TurnPayload, ok bool) {
 
 	//摸牌
 	takeResult := service.DoTake(m.roundCtx, m.roboter.Player, &api.TakeParameter{RoomId: m.roomId, Direction: 1})
+	log.Printf("机器人[%d] 开始摸牌 %v", m.roboter.Idx, takeResult.Take)
 
 	//出牌
 	m.doOptions(takeResult.Options)
@@ -69,7 +70,10 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 		raceArg := &api.RaceParameter{RoomId: m.roomId, RaceType: raceOps.RaceType, Tiles: raceOps.Tiles[0]}
 
 		//下个事件
-		next, _ := service.DoRace(m.roundCtx, m.roboter.Player, raceArg)
+		next, err := service.DoRace(m.roundCtx, m.roboter.Player, raceArg)
+		if err != nil {
+			return
+		}
 		m.doOptions(next.Options)
 	}
 }
@@ -111,9 +115,10 @@ func (m *mindLevel2) isolatePut(ownIdx int) {
 		return
 	}
 
+	log.Printf("机器人[%d] 开始出牌 %v", m.roboter.Idx, targetPut)
 	time.AfterFunc(eventAfterDelay, func() {
 		//出牌
-		put := &api.PutPayload{Who: m.roboter.Idx, Tile: targetPut}
+		put := &api.PutPayload{Who: ownIdx, Tile: targetPut}
 		service.DoPut(m.roundCtx, m.roboter.Player, &api.PutParameter{PutPayload: put, RoomId: m.roomId})
 	})
 }

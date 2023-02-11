@@ -6,7 +6,6 @@ import (
 	"mahjong/server/api"
 	"mahjong/service/engine"
 	"mahjong/service/ploy"
-	"sort"
 )
 
 func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter) *api.TakeResult {
@@ -22,7 +21,7 @@ func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter)
 	//剩余牌
 	takeRemained := ops.Remained()
 	//通知
-	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: 0, Remained: takeRemained})
+	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: takeTile, Remained: takeRemained})
 
 	//判定
 	options := DoRacePre(roundCtx, own, &api.RacePreview{
@@ -76,32 +75,23 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 	} else {
 		targetTile = recenter.Put()
 	}
+	racePart := body.Tiles
 
 	//判定
 	hands := ops.GetTiles(own.Idx).Hands.Clone()
-	if ok, plans := eval.Eval(roundCtx, own.Idx, hands, recentIdx, targetTile); !ok || !matchRacePlan(body.Tiles, plans) {
+	if ok, plans := eval.Eval(roundCtx, own.Idx, hands, recentIdx, targetTile); !ok || !matchRacePlan(racePart, plans) {
 		return nil, errors.New("不支持牌型")
 	}
-	//保存
-	ops.AddRace(own.Idx, body.RaceType, &engine.TileRaces{Tiles: body.Tiles.Clone(), TargetIdx: recentIdx, Tile: targetTile})
 
-	//合并判定牌
-	var mergeTiles mj.Cards
-	if recentIdx == own.Idx {
-		//自己的牌
-		mergeTiles = body.Tiles
-	} else {
-		//别人的牌
-		mergeTiles = append(body.Tiles, targetTile)
-		sort.Ints(mergeTiles)
-	}
+	//保存
+	raceIntact := ops.AddRace(own.Idx, body.RaceType, &engine.TileRaces{Tiles: racePart, TargetIdx: recentIdx, Tile: targetTile})
 
 	//通知
 	roundCtx.Exchange().PostRace(&api.RacePayload{
 		RaceType: body.RaceType,
 		Who:      own.Idx,
 		Target:   recentIdx,
-		Tiles:    mergeTiles,
+		Tiles:    raceIntact,
 		Tile:     targetTile,
 		Interval: api.TurnInterval,
 	})
@@ -144,21 +134,21 @@ func DoRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview
 	items := make([]*api.RaceOption, 0)
 	hands := ops.GetTiles(own.Idx).Hands
 	for k, v := range handles {
-		ok, usable := v.Eval(roundCtx, own.Idx, hands.Clone(), body.Target, body.Tile)
+		ok, plans := v.Eval(roundCtx, own.Idx, hands.Clone(), body.Target, body.Tile)
 		if !ok {
 			continue
 		}
-		items = append(items, &api.RaceOption{RaceType: k, Tiles: usable})
+		items = append(items, &api.RaceOption{RaceType: k, Tiles: plans})
 	}
 
 	if own.Idx == body.Target {
 		//自己回合
-		items = append(items, &api.RaceOption{RaceType: api.PutRace})
+		items = append(items, &api.RaceOption{RaceType: api.PutRace, Tiles: []mj.Cards{}})
 	} else {
 		//他人回合
 		if len(items) > 0 {
 			//如果有可选项，则添加忽略操作
-			items = append(items, &api.RaceOption{RaceType: api.PassRace})
+			items = append(items, &api.RaceOption{RaceType: api.PassRace, Tiles: []mj.Cards{}})
 		} else {
 			//无可选，直接回执忽略事件
 			DoIgnore(roundCtx, own)

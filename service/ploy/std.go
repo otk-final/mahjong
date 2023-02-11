@@ -162,10 +162,9 @@ func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles
 
 	plans := make([]mj.Cards, 0)
 	for i := 0; i < len(races); i++ {
-		existRace := races[i]
-		//只检索碰 且 手牌中有剩余
-		if len(existRace) == 3 && (existRace[0] == existRace[1]) && hands.Index(existRace[0]) != -1 {
-			plans = append(plans, mj.Cards{existRace[0]})
+		raceItem := races[i]
+		if raceItem.IsDDD() && hands.Index(raceItem[0]) != -1 {
+			plans = append(plans, mj.Cards{raceItem[0]})
 		}
 	}
 	return len(plans) > 0, plans
@@ -217,25 +216,24 @@ type winEvaluation struct {
 
 func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
-	hands := tiles.Clone()
-	//非自己手牌 合并目标牌后进行判定
-	if raceIdx != whoIdx {
-		hands = append(hands, tile)
+	var winIntact mj.Cards
+	if raceIdx == whoIdx {
+		//自摸
+		winIntact = tiles
+	} else {
+		//点炮
+		winIntact = append(tiles, tile)
 	}
 
 	//只有两张,判断是否为将牌
-	if len(hands) == 2 {
-		return hands[0] == hands[1], []mj.Cards{hands}
+	if len(winIntact) == 2 {
+		return winIntact[0] == winIntact[1], []mj.Cards{{tile}}
 	}
 
-	comb := mj.NewWinChecker().Check(hands)
+	//是否能胡牌
+	comb := mj.NewWinChecker().Check(winIntact)
 	if comb != nil {
-		//有效组合
-		out := make([]mj.Cards, 0)
-		out = append(out, comb.ABC...)
-		out = append(out, comb.DDD...)
-		out = append(out, comb.EE)
-		return true, out
+		return true, []mj.Cards{{tile}}
 	}
 	return false, nil
 }

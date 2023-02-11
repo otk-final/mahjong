@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"encoding/json"
+	"log"
 	"mahjong/robot"
 	"mahjong/server/api"
 	"mahjong/server/ws"
@@ -45,6 +46,7 @@ func (h *Handler) isRobot(who int) (bool, *api.Roboter) {
 }
 
 func (h *Handler) Take(event *api.TakePayload) {
+	log.Printf("通知：玩家[%d] 摸牌 %d\n", event.Who, event.Tile)
 	packet := api.Packet(api.TakeEvent, "摸牌", event)
 	robots := h.getRobots()
 	for _, roboter := range robots {
@@ -54,6 +56,7 @@ func (h *Handler) Take(event *api.TakePayload) {
 }
 
 func (h *Handler) Put(event *api.PutPayload) {
+	log.Printf("通知：玩家[%d] 出牌 %d\n", event.Who, event.Tile)
 	packet := api.Packet(api.PutEvent, "打牌", event)
 	robots := h.getRobots()
 	for _, roboter := range robots {
@@ -63,6 +66,7 @@ func (h *Handler) Put(event *api.PutPayload) {
 }
 
 func (h *Handler) Race(event *api.RacePayload) {
+	log.Printf("通知：玩家[%d] %s 玩家[%d] - [%v] + %d\n", event.Who, api.RaceNames[event.RaceType], event.Target, event.Tiles, event.Tile)
 	packet := api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event)
 	robots := h.getRobots()
 	for _, roboter := range robots {
@@ -72,6 +76,8 @@ func (h *Handler) Race(event *api.RacePayload) {
 }
 
 func (h *Handler) Win(event *api.WinPayload) {
+	log.Printf("通知：玩家[%d] %s 玩家[%d] - [%v] + %d\n", event.Who, "胡牌", event.Target, event.Tiles.Hands, event.Tile)
+
 	packet := api.Packet(api.WinEvent, "胡牌", event)
 	robots := h.getRobots()
 	for _, roboter := range robots {
@@ -81,10 +87,13 @@ func (h *Handler) Win(event *api.WinPayload) {
 }
 
 func (h *Handler) Ack(event *api.AckPayload) {
+	log.Printf("通知：玩家[%d] pass\n", event.Who)
 	Post(h.RoomId, h.getPlayers(), api.Packet(api.AckEvent, "确认", event))
 }
 
 func (h *Handler) Turn(event *api.TurnPayload, ok bool) {
+	log.Printf("通知：当前回合 玩家[%d]\n", event.Who)
+
 	packet := api.Packet(api.TurnEvent, "轮转", event)
 	//判定是否托管
 	if ok, roboter := h.isRobot(event.Who); ok {

@@ -59,7 +59,7 @@ type RoundOperation interface {
 
 	AddPut(pIdx int, tile int)
 
-	AddRace(pIdx int, raceType api.RaceType, target *TileRaces)
+	AddRace(pIdx int, raceType api.RaceType, target *TileRaces) mj.Cards
 
 	Forward(pIdx int) int
 
