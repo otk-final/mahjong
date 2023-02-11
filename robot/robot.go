@@ -7,17 +7,17 @@ import (
 	"time"
 )
 
-type event struct {
-	roomId     string
-	roundCtx   *engine.RoundCtx
-	roboter    *api.Roboter
+type task struct {
+	consumer   engine.NotifyHandle
 	webEvent   api.WebEvent
 	webPayload any
 }
 
-var robotCh1 = make(chan *event, 4)
-var robotCh2 = make(chan *event, 4)
-var robotCh3 = make(chan *event, 4)
+var eventAfterDelay = 3 * time.Second
+
+var robotCh1 = make(chan *task, 4)
+var robotCh2 = make(chan *task, 4)
+var robotCh3 = make(chan *task, 4)
 
 func init() {
 	route := func(mind engine.NotifyHandle, webEvent api.WebEvent, webPayload any) {
@@ -41,12 +41,13 @@ func init() {
 		for {
 			select {
 			case e := <-robotCh1:
-				route(&mindLevel1{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
+				route(e.consumer, e.webEvent, e.webPayload)
 			case e := <-robotCh2:
-				route(&mindLevel1{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
+				route(e.consumer, e.webEvent, e.webPayload)
 			case e := <-robotCh3:
-				route(&mindLevel1{roomId: e.roomId, roboter: e.roboter, roundCtx: e.roundCtx}, e.webEvent, e.webPayload)
+				route(e.consumer, e.webEvent, e.webPayload)
 			case <-time.After(5 * time.Second):
+				//wait
 			}
 		}
 	}()
@@ -60,12 +61,42 @@ func Post[T any](roomId string, roboter *api.Roboter, packet *api.WebPacket[T]) 
 		return
 	}
 
-	e := &event{roomId: roomId, roundCtx: roundCtx, roboter: roboter, webEvent: packet.Event, webPayload: packet.Payload}
+	//default
+	dm := &minder{roundCtx: roundCtx, roomId: roomId, roboter: roboter}
 	if roboter.Level == 1 {
-		robotCh1 <- e
+		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 2 {
-		robotCh2 <- e
+		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 3 {
-		robotCh3 <- e
+		//l1 := &mindLevel1{minder: dm}
+		//l2 := &mindLevel2{minder: dm}
+		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	}
+}
+
+type minder struct {
+	roundCtx *engine.RoundCtx
+	roomId   string
+	roboter  *api.Roboter
+}
+
+func (m *minder) Take(event *api.TakePayload) {
+}
+
+func (m *minder) Put(event *api.PutPayload) {
+}
+
+func (m *minder) Race(event *api.RacePayload) {
+}
+
+func (m *minder) Win(event *api.WinPayload) {
+}
+
+func (m *minder) Ack(event *api.AckPayload) {
+}
+
+func (m *minder) Turn(event *api.TurnPayload, ok bool) {
+}
+
+func (m *minder) Quit(ok bool) {
 }

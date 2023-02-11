@@ -59,6 +59,7 @@ type AckPayload struct {
 }
 
 type TurnPayload struct {
+	Pre      int `json:"pre"`
 	Who      int `json:"who"`
 	Interval int `json:"interval"`
 }

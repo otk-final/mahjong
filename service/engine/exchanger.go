@@ -3,20 +3,22 @@ package engine
 import (
 	"log"
 	"mahjong/server/api"
+	"sync"
 	"time"
 )
 
 type Exchanger struct {
-	pos     *Position
-	handler NotifyHandle
-	_ack    *ackQueue
-	_cd     *countdown
-	_exit   bool
-	takeCh  chan *api.TakePayload
-	putCh   chan *api.PutPayload
-	raceCh  chan *api.RacePayload
-	winCh   chan *api.WinPayload
-	ackCh   chan *api.AckPayload
+	lock       sync.Mutex
+	pos        *Position
+	handler    NotifyHandle
+	_ack       *ackQueue
+	_cd        *countdown
+	_isRunning bool
+	takeCh     chan *api.TakePayload
+	putCh      chan *api.PutPayload
+	raceCh     chan *api.RacePayload
+	winCh      chan *api.WinPayload
+	ackCh      chan *api.AckPayload
 }
 
 type NotifyHandle interface {
@@ -89,17 +91,10 @@ func (exc *Exchanger) start(interval int) {
 	exc._ack = aq
 
 	//释放
-	defer func() {
-		log.Println("结束 exchanger")
-		cd.stop()
-		close(exc.takeCh)
-		close(exc.putCh)
-		close(exc.raceCh)
-		close(exc.winCh)
-		close(exc.ackCh)
-	}()
+	defer exc.stop()
 
 	//从庄家开始
+	exc._isRunning = true
 	exc.pos.move(exc.pos.master.Idx)
 
 	//堵塞监听
@@ -114,13 +109,11 @@ func (exc *Exchanger) start(interval int) {
 				return
 			}
 			handler.Take(t)
-			break
 		case p := <-exc.putCh:
 			//每当出一张牌，均需等待其他玩家确认或者抢占
 			aq.newAckId()
 			//出牌事件
 			handler.Put(p)
-			break
 		case r := <-exc.raceCh:
 			//抢占 碰，杠，吃，... 设置当前回合
 			pos.move(r.Who)
@@ -130,10 +123,8 @@ func (exc *Exchanger) start(interval int) {
 			aq.reset()
 			//通知
 			handler.Race(r)
-			break
 		case _ = <-exc.winCh:
 			//通知当局游戏结束
-			exc._exit = true
 			handler.Quit(true)
 			return
 		case a := <-exc.ackCh:
@@ -147,19 +138,22 @@ func (exc *Exchanger) start(interval int) {
 				//重置定时
 				cd.restart(true)
 				//正常轮转下家
+				pre := pos.turnIdx
 				who := pos.next()
-				handler.Turn(&api.TurnPayload{Who: who, Interval: interval}, true)
+				handler.Turn(&api.TurnPayload{Pre: pre, Who: who, Interval: interval}, true)
 			}
-			break
-		case <-cd.timer.C:
+		case <-cd.ticker.C:
+			//超时，玩家无任何动作
+
 			//并清除待ack队列
 			aq.reset()
 			//倒计
 			cd.restart(false)
-			//超时，玩家无任何动作
+
+			pre := pos.turnIdx
 			who := pos.next()
 			//非正常轮转下家
-			handler.Turn(&api.TurnPayload{Who: who, Interval: interval}, false)
+			handler.Turn(&api.TurnPayload{Pre: pre, Who: who, Interval: interval}, false)
 		}
 	}
 }
@@ -173,29 +167,59 @@ func (exc *Exchanger) TurnTime() int {
 }
 
 func (exc *Exchanger) PostTake(e *api.TakePayload) {
-	exc.takeCh <- e
+	if exc.isRunning() {
+		exc.takeCh <- e
+	}
 }
 func (exc *Exchanger) PostPut(e *api.PutPayload) {
-	exc.putCh <- e
+	if exc.isRunning() {
+		exc.putCh <- e
+	}
 }
 func (exc *Exchanger) PostRace(e *api.RacePayload) {
-	exc.raceCh <- e
+	if exc.isRunning() {
+		exc.raceCh <- e
+	}
 }
 func (exc *Exchanger) PostAck(e *api.AckPayload) {
-	exc.ackCh <- e
+	if exc.isRunning() {
+		exc.ackCh <- e
+	}
 }
 func (exc *Exchanger) PostWin(e *api.WinPayload) {
 	//通知结束 只通知一次
-	if !exc._exit {
+	if exc.isRunning() {
 		exc.winCh <- e
 	}
 	//判定只会有存在一家，但胡牌可能是多家，则直接通知
 	exc.handler.Win(e)
 }
 
+func (exc *Exchanger) isRunning() bool {
+	defer exc.lock.Unlock()
+	exc.lock.Lock()
+	return exc._isRunning
+}
+
+func (exc *Exchanger) stop() {
+	defer exc.lock.Unlock()
+	exc.lock.Lock()
+
+	log.Println("结束 exchanger")
+
+	//close
+	close(exc.takeCh)
+	close(exc.putCh)
+	close(exc.raceCh)
+	close(exc.winCh)
+	close(exc.ackCh)
+	exc._cd.stop()
+	exc._isRunning = false
+}
+
 type countdown struct {
 	interval time.Duration
-	timer    *time.Timer
+	ticker   *time.Ticker
 	nextTime time.Time
 }
 
@@ -203,15 +227,14 @@ func newCountdown(second int) *countdown {
 	interval := time.Duration(second) * time.Second
 	return &countdown{
 		interval: interval,
-		timer:    time.NewTimer(interval),
+		ticker:   time.NewTicker(interval),
 		nextTime: time.Now().Add(interval),
 	}
 }
 
 func (c *countdown) restart(reset bool) {
 	if reset {
-		//ok := c.timer.Reset(c.interval)
-		//log.Printf("重置定时：%v", ok)
+		c.ticker.Reset(c.interval)
 	}
 	//下一次时间
 	c.nextTime = time.Now().Add(c.interval)
@@ -222,5 +245,5 @@ func (c countdown) remaining() int {
 }
 
 func (c *countdown) stop() {
-	c.timer.Stop()
+	c.ticker.Stop()
 }

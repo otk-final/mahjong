@@ -88,7 +88,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		store.UpdatePosition(body.RoomId, pos)
 
 		//通知新玩家加入
-		broadcast.Post(body.RoomId, pos.Joined(), api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member, Round: 0}))
+		broadcast.Post(body.RoomId, pos.Joined(), api.Packet(api.JoinEvent, "加入", &api.JoinPayload{NewPlayer: member}))
 	}
 
 	//判定游戏是否开始

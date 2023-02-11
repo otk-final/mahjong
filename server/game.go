@@ -72,7 +72,8 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 		}
 		currentIdx := player.Idx
 		for _, user := range joined {
-			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
+			//tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
+			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == currentIdx)
 			startPayload.Players = append(startPayload.Players, tiles)
 		}
 		return api.Packet(api.BeginEvent, "开始", startPayload)
@@ -132,8 +133,6 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		//判定
 		raceQuery := &api.RacePreview{
 			RoomId: body.RoomId,
-			Round:  0,
-			AckId:  roundCtx.Exchange().CurrentAckId(),
 			Target: recentIdx,
 			Tile:   raceTile,
 		}

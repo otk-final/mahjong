@@ -93,15 +93,32 @@ func (lp *LaiProvider) Handles() map[api.RaceType]RaceEvaluator {
 	illegals := mj.Cards{lp.tileLai, lp.tileCao, lp.tileGui}
 
 	evalMap := map[api.RaceType]RaceEvaluator{
-		api.DDDRace:         &dddEvaluation{illegals: illegals},
-		api.ABCRace:         &abcWithLai{tileLai: lp.tileLai, tileGui: lp.tileGui, abcEvaluation: abcEvaluation{illegals: illegals}},
-		api.EEEERace:        &eeeeEvaluation{illegals: illegals},
-		api.EEEEOwnRace:     &eeeeOwnEvaluation{illegals: illegals},
-		api.EEEEUpgradeRace: &eeeeUpgradeEvaluation{illegals: illegals},
-		api.CaoRace:         &dddEvaluation{mj.Cards{lp.tileLai, lp.tileGui}}, //忽略朝天牌
-		api.LaiRace:         &fixWithLai{tile: lp.tileLai},
-		api.GuiRace:         &fixWithLai{tile: lp.tileGui},
-		api.WinRace:         &winWithLai{tileLai: lp.tileLai, tileGui: lp.tileGui, noWin: lp.noWin, unique: lp.unique},
+		api.DDDRace: &dddEvaluation{
+			illegals: illegals,
+		},
+		api.ABCRace: &abcWithLai{
+			tileLai:       lp.tileLai,
+			tileGui:       lp.tileGui,
+			abcEvaluation: abcEvaluation{illegals: illegals},
+		},
+		api.EEEERace:        &eeeeEvaluation{},
+		api.EEEEOwnRace:     &eeeeOwnEvaluation{},
+		api.EEEEUpgradeRace: &eeeeUpgradeEvaluation{},
+		api.CaoRace: &caoWithLai{
+			tile: lp.tileCao,
+		},
+		api.LaiRace: &fixWithLai{
+			tile: lp.tileLai,
+		},
+		api.GuiRace: &fixWithLai{
+			tile: lp.tileGui,
+		},
+		api.WinRace: &winWithLai{
+			tileLai: lp.tileLai,
+			tileGui: lp.tileGui,
+			noWin:   lp.noWin,
+			unique:  lp.unique,
+		},
 	}
 	//不能吃
 	if lp.noABC {
@@ -145,6 +162,31 @@ func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, 
 		return false, nil
 	}
 	return true, []mj.Cards{{eval.tile}}
+}
+
+type caoWithLai struct {
+	tile int
+}
+
+func (eval *caoWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
+	//朝自己，或者别人
+	if raceIdx == whoIdx {
+		//自己回合时，判定有3张
+		caos := ctx.Operating().GetTiles(raceIdx).Hands.Indexes(eval.tile)
+		if len(caos) == 3 {
+			return true, []mj.Cards{caos}
+		}
+	} else {
+		//他人回合
+		if eval.tile != tile {
+			return false, nil
+		}
+		caos := ctx.Operating().GetTiles(raceIdx).Hands.Indexes(eval.tile)
+		if len(caos) == 2 {
+			return true, []mj.Cards{caos}
+		}
+	}
+	return false, nil
 }
 
 type winWithLai struct {

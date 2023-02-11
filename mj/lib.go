@@ -24,13 +24,13 @@ func LoadLibrary(kinds ...Kind) []int {
 	newLib := make([]int, 0)
 	for _, choose := range kinds {
 		mjRange := mjKindRange[choose]
-		//非连续
 		if choose == WindCard || choose == OtherCard {
+			//风，中，发，白
 			for i := 0; i < len(mjRange); i++ {
 				newLib = append(newLib, mjRange[i], mjRange[i], mjRange[i], mjRange[i])
 			}
 		} else {
-			//四张
+			//万，筒，条
 			for i := mjRange[0]; i <= mjRange[1]; i++ {
 				newLib = append(newLib, i, i, i, i)
 			}

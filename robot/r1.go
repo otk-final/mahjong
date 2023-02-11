@@ -2,23 +2,19 @@ package robot
 
 import (
 	"errors"
+	"log"
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/service"
-	"mahjong/service/engine"
 	"mahjong/service/ploy"
+	"math/rand"
 	"time"
 )
 
 //最初级，从不判定，摸什么出什么
 
 type mindLevel1 struct {
-	roundCtx *engine.RoundCtx
-	roomId   string
-	roboter  *api.Roboter
-}
-
-func (m *mindLevel1) Take(event *api.TakePayload) {
+	*minder
 }
 
 func (m *mindLevel1) Put(event *api.PutPayload) {
@@ -30,25 +26,18 @@ func (m *mindLevel1) Put(event *api.PutPayload) {
 	m.roundCtx.Exchange().PostAck(&api.AckPayload{Who: m.roboter.Idx, AckId: ackId})
 }
 
-func (m *mindLevel1) Race(event *api.RacePayload) {
-}
-
-func (m *mindLevel1) Win(event *api.WinPayload) {
-}
-
-func (m *mindLevel1) Ack(event *api.AckPayload) {
-}
-
 func randomPutWithHand(pIdx int, hands mj.Cards, provider ploy.GameDefine) (int, error) {
-	if len(hands) == 0 {
-		return 0, errors.New("hands is empty")
-	}
+	cans := make([]int, 0)
 	for _, t := range hands {
 		if provider.CanPut(pIdx, t) {
-			return t, nil
+			cans = append(cans, t)
 		}
 	}
-	return 0, errors.New("no can put")
+	cl := len(cans)
+	if cl == 0 {
+		return -1, errors.New("no can put")
+	}
+	return cans[rand.Intn(cl)], nil
 }
 
 func (m *mindLevel1) Turn(event *api.TurnPayload, ok bool) {
@@ -58,7 +47,7 @@ func (m *mindLevel1) Turn(event *api.TurnPayload, ok bool) {
 		RoomId:    m.roomId,
 		Direction: 1,
 	})
-	ownIdx := m.roboter.Idx
+	ownIdx := event.Who
 
 	//不能出，则从手牌中随机选择
 	targetPut := takeResult.Take
@@ -66,20 +55,18 @@ func (m *mindLevel1) Turn(event *api.TurnPayload, ok bool) {
 	if !provider.CanPut(ownIdx, targetPut) {
 		hands := m.roundCtx.Operating().GetTiles(ownIdx).Hands
 		targetPut, err = randomPutWithHand(ownIdx, hands, provider)
-	}
-	if err != nil {
-		return
+		if err != nil {
+			log.Printf("错误：%v", hands)
+			return
+		}
 	}
 
 	put := &api.PutPayload{Who: m.roboter.Idx, Tile: targetPut}
 	//延迟3秒出牌
-	time.AfterFunc(3*time.Second, func() {
+	time.AfterFunc(eventAfterDelay, func() {
 		service.DoPut(m.roundCtx, m.roboter.Player, &api.PutParameter{
 			PutPayload: put,
 			RoomId:     m.roomId,
 		})
 	})
-}
-
-func (m *mindLevel1) Quit(ok bool) {
 }

@@ -39,53 +39,25 @@ func Shuffle(cards mj.Cards) mj.Cards {
 
 // Distribution 发牌
 func (tb *Table) Distribution(num int) map[int]mj.Cards {
-
-	//等比分4方
-	sideCount := len(tb.tiles) / 4
-
-	//顺时针摆牌
-	splitIdx := 0
-	//	骰子：1，3，5对，2，6顺，4反
-	switch tb.dice {
-	case 1, 3, 5:
-		splitIdx = sideCount*2 + tb.dice*2
-		break
-	case 2, 6:
-		splitIdx = sideCount*1 + tb.dice*2
-		break
-	case 4:
-		splitIdx = sideCount*3 + tb.dice*2
-		break
-	}
-
-	//重新排序
-	forward := tb.tiles[:splitIdx]
-	backward := tb.tiles[splitIdx:]
-
-	newLibrary := make([]int, 0)
-	newLibrary = append(newLibrary, backward...)
-	newLibrary = append(newLibrary, forward...)
-	tb.remains = newLibrary
-
-	members := make(map[int]mj.Cards, 0)
+	defer tb.lock.Unlock()
+	tb.lock.Lock()
 
 	// init玩家手牌
-	for i := 0; i < num; i++ {
-		members[i] = make([]int, 0)
-	}
-
+	members := map[int]mj.Cards{}
 	startIdx := 0
 	//发牌 共13张 3 * 4 + 1
 	for i := 0; i < 4; i++ {
-		count := 4
+		takeCount := 4
 		if i == 3 { //最后轮流一张
-			count = 1
+			takeCount = 1
 		}
 		for m := 0; m < num; m++ {
-			members[m] = append(members[m], tb.remains[startIdx:startIdx+count]...)
-			startIdx = startIdx + count
+			members[m] = append(members[m], tb.tiles[startIdx:startIdx+takeCount]...)
+			startIdx = startIdx + takeCount
 		}
 	}
+	//剩于牌
+	tb.remains = tb.tiles[startIdx:]
 	return members
 }
 
@@ -114,9 +86,10 @@ func (tb *Table) Backward() int {
 
 	tailIdx := len(tb.remains) - 1
 	tail := tb.remains[tailIdx]
-	tb.remains = tb.remains[0:tailIdx]
+	tb.remains = tb.remains[:tailIdx]
 	return tail
 }
+
 func (tb *Table) Remains() int {
 	return len(tb.remains)
 }

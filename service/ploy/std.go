@@ -4,7 +4,6 @@ import (
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/service/engine"
-	"sort"
 	"sync"
 )
 
@@ -108,35 +107,24 @@ func isUpperIdx(mineIdx, whoIdx, members int) bool {
 	return false
 }
 
-func RaceTilesMerge(race api.RaceType, tiles mj.Cards, tile int) mj.Cards {
-	switch race {
-	case api.CaoRace, api.ABCRace, api.DDDRace:
-		//合并
-		result := append(tiles.Clone(), tile)
-		sort.Ints(result)
-		return result
-	case api.EEEERace, api.EEEEOwnRace, api.EEEEUpgradeRace:
-		return mj.Cards{tile, tile, tile, tile}
-	case api.GuiRace, api.LaiRace:
-		//单牌
-		return mj.Cards{tile}
-	}
-	return mj.Cards{}
-}
-
 func (eval *abcEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	//只能吃上家出的牌
-	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) || eval.illegals.Index(tile) != -1 {
+	if !isUpperIdx(raceIdx, whoIdx, ctx.Pos().Num()) {
 		return false, nil
 	}
 	effects := make([]mj.Cards, 0)
 	options := [][]int{{tile + 1, tile + 2}, {tile - 2, tile - 1}, {tile - 1, tile + 1}}
 	for _, t := range options {
-		if tiles.Index(t[0]) == -1 || tiles.Index(t[1]) == -1 {
+		tp, tn := t[0], t[1]
+		//非法
+		if eval.illegals.Index(tp) != -1 || eval.illegals.Index(tn) != -1 {
 			continue
 		}
-		effects = append(effects, mj.Cards{t[0], t[1]})
+		//存在
+		if tiles.Index(tp) != -1 && tiles.Index(tn) != -1 {
+			effects = append(effects, t)
+		}
 	}
 	return len(effects) > 0, effects
 }
@@ -160,29 +148,31 @@ func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Card
 
 // 杠（碰升级）
 type eeeeUpgradeEvaluation struct {
-	illegals mj.Cards
 }
 
 func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//自杠 从已判断中的牌检索
-	if raceIdx != whoIdx || eval.illegals.Index(tile) != -1 {
+	if raceIdx != whoIdx {
 		return false, nil
 	}
 	tileCtx := ctx.Operating().GetTiles(raceIdx)
-	//检索 碰过的
+	//检索 已判定的牌
 	races := tileCtx.Races
+	hands := tileCtx.Hands
+
+	plans := make([]mj.Cards, 0)
 	for i := 0; i < len(races); i++ {
-		existIdx := races[i].Indexes(tile)
-		if len(existIdx) == 3 {
-			return true, []mj.Cards{{tile}}
+		existRace := races[i]
+		//只检索碰 且 手牌中有剩余
+		if len(existRace) == 3 && (existRace[0] == existRace[1]) && hands.Index(existRace[0]) != -1 {
+			plans = append(plans, mj.Cards{existRace[0]})
 		}
 	}
-	return false, nil
+	return len(plans) > 0, plans
 }
 
 // 杠（自己）
 type eeeeOwnEvaluation struct {
-	illegals mj.Cards
 }
 
 func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
@@ -195,31 +185,27 @@ func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.
 		counts[t] = counts[t] + 1
 	}
 
-	hasGangs := make([]mj.Cards, 0)
+	plans := make([]mj.Cards, 0)
 	for k, v := range counts {
-		if v < 4 || eval.illegals.Index(k) != -1 {
-			continue
+		//有4张
+		if v == 4 {
+			plans = append(plans, mj.Cards{k, k, k, k})
 		}
-		hasGangs = append(hasGangs, mj.Cards{k, k, k, k})
 	}
-	if len(hasGangs) > 0 {
-		return true, hasGangs
-	}
-	return false, nil
+	return len(plans) > 0, plans
 }
 
 // 杠（别人）
 type eeeeEvaluation struct {
-	illegals mj.Cards
 }
 
 func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能杠自己打的牌
-	if raceIdx == whoIdx || eval.illegals.Index(tile) != -1 {
+	if raceIdx == whoIdx {
 		return false, nil
 	}
-	existLen := len(tiles.Indexes(tile))
-	if existLen == 3 {
+	//自己手牌中存在3张
+	if len(tiles.Indexes(tile)) == 3 {
 		return true, []mj.Cards{{tile, tile, tile}}
 	}
 	return false, nil

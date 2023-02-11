@@ -6,6 +6,7 @@ import (
 	"mahjong/server/api"
 	"mahjong/service/engine"
 	"mahjong/service/ploy"
+	"sort"
 )
 
 func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter) *api.TakeResult {
@@ -23,10 +24,14 @@ func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter)
 	//通知
 	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: 0, Remained: takeRemained})
 
-	return &api.TakeResult{
-		PlayerTiles: ops.GetTiles(own.Idx),
-		Take:        takeTile, Remained: takeRemained,
-	}
+	//判定
+	options := DoRacePre(roundCtx, own, &api.RacePreview{
+		RoomId: body.RoomId,
+		Target: own.Idx,
+		Tile:   takeTile,
+	})
+
+	return &api.TakeResult{PlayerTiles: ops.GetTiles(own.Idx), Take: takeTile, Remained: takeRemained, Options: options}
 }
 
 func DoPut(roundCtx *engine.RoundCtx, own *api.Player, body *api.PutParameter) *api.PutResult {
@@ -37,10 +42,7 @@ func DoPut(roundCtx *engine.RoundCtx, own *api.Player, body *api.PutParameter) *
 	body.Who = own.Idx
 	roundCtx.Exchange().PostPut(body.PutPayload)
 	//最新手牌
-	return &api.PutResult{
-		PlayerTiles: ops.GetTiles(own.Idx),
-		Put:         body.Tile,
-	}
+	return &api.PutResult{PlayerTiles: ops.GetTiles(own.Idx), Put: body.Tile}
 }
 
 func matchRacePlan(target mj.Cards, plans []mj.Cards) bool {
@@ -83,43 +85,43 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 	//保存
 	ops.AddRace(own.Idx, body.RaceType, &engine.TileRaces{Tiles: body.Tiles.Clone(), TargetIdx: recentIdx, Tile: targetTile})
 
+	//合并判定牌
+	var mergeTiles mj.Cards
+	if recentIdx == own.Idx {
+		//自己的牌
+		mergeTiles = body.Tiles
+	} else {
+		//别人的牌
+		mergeTiles = append(body.Tiles, targetTile)
+		sort.Ints(mergeTiles)
+	}
+
 	//通知
 	roundCtx.Exchange().PostRace(&api.RacePayload{
 		RaceType: body.RaceType,
 		Who:      own.Idx,
 		Target:   recentIdx,
-		Tiles:    ploy.RaceTilesMerge(body.RaceType, body.Tiles, targetTile),
+		Tiles:    mergeTiles,
 		Tile:     targetTile,
 		Interval: api.TurnInterval,
 	})
 
 	//后置事件
-	var usableRaces []*api.RaceOption
-	var err error
+	var options []*api.RaceOption
 	var continueTake int
 	switch body.RaceType {
-	case api.EEEERace, api.LaiRace, api.GuiRace:
+	case api.EEEERace, api.EEEEUpgradeRace, api.EEEEOwnRace, api.LaiRace, api.GuiRace:
 		//从后往前摸牌
 		takeResult := DoTake(roundCtx, own, &api.TakeParameter{RoomId: body.RoomId, Direction: -1})
 		if takeResult.Take == -1 {
 			return nil, errors.New("游戏结束 平局")
 		}
 		continueTake = takeResult.Take
-		//判定
-		usableRaces = DoRacePre(roundCtx, own, &api.RacePreview{
-			RoomId: body.RoomId,
-			Target: own.Idx,
-			Tile:   continueTake,
-		})
-		if err != nil {
-			return nil, err
-		}
-		break
+		options = takeResult.Options
 	case api.ABCRace, api.DDDRace, api.CaoRace:
 		continueTake = -1
 		//吃，碰 , 朝 渲染出牌入口
-		usableRaces = append(usableRaces, &api.RaceOption{RaceType: api.PutRace, Tiles: nil})
-		break
+		options = append(options, &api.RaceOption{RaceType: api.PutRace, Tiles: nil})
 	default:
 		return nil, errors.New("事件非法")
 	}
@@ -127,7 +129,7 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 	return &api.RaceResult{
 		PlayerTiles:  ops.GetTiles(own.Idx),
 		ContinueTake: continueTake,
-		Options:      usableRaces,
+		Options:      options,
 		Target:       recentIdx,
 		TargetTile:   targetTile,
 	}, nil
@@ -154,7 +156,7 @@ func DoRacePre(roundCtx *engine.RoundCtx, own *api.Player, body *api.RacePreview
 		items = append(items, &api.RaceOption{RaceType: api.PutRace})
 	} else {
 		//他人回合
-		if len(items) == 0 {
+		if len(items) > 0 {
 			//如果有可选项，则添加忽略操作
 			items = append(items, &api.RaceOption{RaceType: api.PassRace})
 		} else {
