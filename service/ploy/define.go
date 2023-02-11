@@ -10,6 +10,8 @@ import (
 
 // GameDefine 游戏规则
 type GameDefine interface {
+	// Extras 特殊牌
+	Extras() []*mj.CardExtra
 	// CanPut 可以除的牌
 	CanPut(pIdx int, tile int) bool
 	// InitOperation 初始化
@@ -34,7 +36,7 @@ func NewProvider(mode string) GameDefine {
 	switch mode {
 	case "std": //标准
 		return newBaseProvider()
-	case "LaiCollect": //赖子
+	case "lai": //赖子
 		return newLaiProvider()
 	case "k5x": //卡5星
 		break
@@ -123,6 +125,9 @@ func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces
 	//移除自己手上的牌
 	for _, t := range tileRaces.Tiles {
 		tIdx := own.Hands.Index(t)
+		if tIdx == -1 {
+			continue
+		}
 		own.Hands = own.Hands.Remove(tIdx)
 	}
 
@@ -146,10 +151,10 @@ func (b *BaseRoundCtxHandler) AddRace(pIdx int, raceType api.RaceType, tileRaces
 	if raceType == api.EEEEUpgradeRace {
 		for i := 0; i < len(own.Races); i++ {
 			raceItem := own.Races[i]
-			if !raceItem.IsDDD() {
-				continue
+			if raceItem.IsEEEEUpgrade(raceIntact[0]) {
+				own.Races[i] = append(raceItem, raceIntact[0])
+				break
 			}
-			own.Races[i] = append(raceItem, raceIntact[0])
 		}
 	} else {
 		own.Races = append(own.Races, raceIntact)

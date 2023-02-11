@@ -23,6 +23,7 @@ type LaiProvider struct {
 func newLaiProvider() GameDefine {
 	return &LaiProvider{
 		BaseProvider: BaseProvider{},
+		hasGui:       true,
 	}
 }
 
@@ -31,6 +32,17 @@ type LaiRoundCtxHandler struct {
 	Cao int
 	Lai int
 	Gui int
+}
+
+func (lp *LaiProvider) Extras() []*mj.CardExtra {
+	extras := []*mj.CardExtra{
+		{Tile: lp.tileCao, Name: "朝"},
+		{Tile: lp.tileLai, Name: "癞"},
+	}
+	if lp.hasGui {
+		extras = append(extras, &mj.CardExtra{Tile: lp.tileGui, Name: "鬼"})
+	}
+	return extras
 }
 
 func (lp *LaiProvider) CanPut(pIdx int, tile int) bool {
@@ -76,15 +88,23 @@ func (lp *LaiProvider) InitOperation(setting *api.GameConfigure) engine.RoundOpe
 		break
 	case mj.T9:
 		lai = mj.T1
+		break
 	case mj.L9:
 		lai = mj.L1
+		break
 	default:
-		lai++
+		lai = cao + 1
 	}
+
+	lp.tileGui = mj.Zh
+	lp.tileCao = cao
+	lp.tileLai = lai
+
 	return &LaiRoundCtxHandler{
 		BaseRoundCtxHandler: handler,
 		Cao:                 cao,
 		Lai:                 lai,
+		Gui:                 mj.Zh,
 	}
 }
 
@@ -159,9 +179,9 @@ func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, 
 	//是否存在
 	exist := tiles.Index(eval.tile)
 	if exist != -1 {
-		return false, nil
+		return true, []mj.Cards{{eval.tile}}
 	}
-	return true, []mj.Cards{{eval.tile}}
+	return false, nil
 }
 
 type caoWithLai struct {

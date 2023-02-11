@@ -69,11 +69,11 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 			Interval: api.TurnInterval,
 			Remained: roundCtxOps.Remained(),
 			Players:  make([]*api.PlayerTiles, 0),
+			Extras:   provider.Extras(),
 		}
 		currentIdx := player.Idx
 		for _, user := range joined {
-			//tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
-			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == currentIdx)
+			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
 			startPayload.Players = append(startPayload.Players, tiles)
 		}
 		return api.Packet(api.BeginEvent, "开始", startPayload)
@@ -99,7 +99,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	userTiles := make([]*api.PlayerTiles, 0)
 	for _, user := range joined {
 		//非自己的牌，查询是否选择明牌
-		tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(own.Idx == own.Idx)
+		tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(own.Idx == user.Idx)
 		userTiles = append(userTiles, tiles)
 	}
 
@@ -144,6 +144,9 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		}
 	}
 
+	//每种玩法，独立逻辑处理
+	provider := ploy.RenewProvider(roundCtx)
+
 	return &api.GameInf{
 		GamePayload: &api.GamePayload{
 			TurnIdx:   turnIdx,
@@ -151,6 +154,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 			RecentIdx: recentIdx,
 			Remained:  roundCtxOps.Remained(),
 			Players:   userTiles,
+			Extras:    provider.Extras(),
 		},
 		Options: usableRaces,
 		RoomId:  body.RoomId,

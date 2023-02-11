@@ -1,6 +1,10 @@
 package mj
 
 type Kind string
+type CardExtra struct {
+	Tile int    `json:"tile"`
+	Name string `json:"name"`
+}
 
 var WanCard Kind = "wan"
 

@@ -69,11 +69,12 @@ type JoinPayload struct {
 }
 
 type GamePayload struct {
-	TurnIdx   int            `json:"turnIdx"`
-	Interval  int            `json:"interval"`
-	RecentIdx int            `json:"recentIdx"`
-	Remained  int            `json:"remained"`
-	Players   []*PlayerTiles `json:"players"`
+	TurnIdx   int             `json:"turnIdx"`
+	Interval  int             `json:"interval"`
+	RecentIdx int             `json:"recentIdx"`
+	Remained  int             `json:"remained"`
+	Players   []*PlayerTiles  `json:"players"`
+	Extras    []*mj.CardExtra `json:"extras"`
 }
 
 func Packet[T any](code WebEvent, name string, event T) *WebPacket[T] {

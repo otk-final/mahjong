@@ -54,4 +54,4 @@ const (
 	TakeRace RaceType = 2
 )
 
-const TurnInterval = 20
+const TurnInterval = 200

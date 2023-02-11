@@ -26,7 +26,7 @@ func (m *mindLevel1) Put(event *api.PutPayload) {
 	m.roundCtx.Exchange().PostAck(&api.AckPayload{Who: m.roboter.Idx, AckId: ackId})
 }
 
-func randomPutWithHand(pIdx int, hands mj.Cards, provider ploy.GameDefine) (int, error) {
+func randomCanPut(pIdx int, hands mj.Cards, provider ploy.GameDefine) (int, error) {
 	cans := make([]int, 0)
 	for _, t := range hands {
 		if provider.CanPut(pIdx, t) {
@@ -54,7 +54,7 @@ func (m *mindLevel1) Turn(event *api.TurnPayload, ok bool) {
 	var err error
 	if !provider.CanPut(ownIdx, targetPut) {
 		hands := m.roundCtx.Operating().GetTiles(ownIdx).Hands
-		targetPut, err = randomPutWithHand(ownIdx, hands, provider)
+		targetPut, err = randomCanPut(ownIdx, hands, provider)
 		if err != nil {
 			log.Printf("错误：%v", hands)
 			return

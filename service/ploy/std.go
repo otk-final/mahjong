@@ -15,6 +15,10 @@ func (bp *BaseProvider) CanPut(pIdx int, tile int) bool {
 	return true
 }
 
+func (bp *BaseProvider) Extras() []*mj.CardExtra {
+	return []*mj.CardExtra{}
+}
+
 func (bp *BaseProvider) Renew(ctx *engine.RoundCtx) GameDefine {
 	return bp
 }

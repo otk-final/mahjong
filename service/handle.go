@@ -17,18 +17,27 @@ func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter)
 	} else {
 		takeTile = ops.Forward(own.Idx)
 	}
-	ops.AddTake(own.Idx, takeTile)
+
 	//剩余牌
 	takeRemained := ops.Remained()
-	//通知
-	roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: takeTile, Remained: takeRemained})
+	options := make([]*api.RaceOption, 0)
 
-	//判定
-	options := DoRacePre(roundCtx, own, &api.RacePreview{
-		RoomId: body.RoomId,
-		Target: own.Idx,
-		Tile:   takeTile,
-	})
+	//游戏结束
+	if takeTile == -1 {
+
+		roundCtx.Exchange().Quit()
+	} else {
+		//保存
+		ops.AddTake(own.Idx, takeTile)
+		//通知 屏蔽真实牌
+		roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: 0, Remained: takeRemained})
+		//判定
+		options = DoRacePre(roundCtx, own, &api.RacePreview{
+			RoomId: body.RoomId,
+			Target: own.Idx,
+			Tile:   takeTile,
+		})
+	}
 
 	return &api.TakeResult{PlayerTiles: ops.GetTiles(own.Idx), Take: takeTile, Remained: takeRemained, Options: options}
 }

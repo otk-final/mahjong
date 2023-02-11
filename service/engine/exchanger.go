@@ -91,7 +91,7 @@ func (exc *Exchanger) start(interval int) {
 	exc._ack = aq
 
 	//释放
-	defer exc.stop()
+	defer exc.Quit()
 
 	//从庄家开始
 	exc._isRunning = true
@@ -201,7 +201,7 @@ func (exc *Exchanger) isRunning() bool {
 	return exc._isRunning
 }
 
-func (exc *Exchanger) stop() {
+func (exc *Exchanger) Quit() {
 	defer exc.lock.Unlock()
 	exc.lock.Lock()
 

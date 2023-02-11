@@ -72,8 +72,11 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 		//下个事件
 		next, err := service.DoRace(m.roundCtx, m.roboter.Player, raceArg)
 		if err != nil {
+			log.Printf("动作：%s 推荐：%v error", api.RaceNames[raceOps.RaceType], raceOps.Tiles)
 			return
 		}
+
+		//递归处理
 		m.doOptions(next.Options)
 	}
 }
@@ -108,7 +111,7 @@ func (m *mindLevel2) isolatePut(ownIdx int) {
 		targetPut = isolates[len(isolates)-1]
 	} else {
 		//随机
-		targetPut, err = randomPutWithHand(ownIdx, hands, provider)
+		targetPut, err = randomCanPut(ownIdx, hands, provider)
 	}
 	if err != nil {
 		log.Printf("错误：%v", hands)

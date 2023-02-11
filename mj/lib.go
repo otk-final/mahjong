@@ -2,7 +2,6 @@ package mj
 
 import "sort"
 
-type Card int
 type Cards []int
 
 var mjKindRange = map[Kind][]int{
@@ -125,6 +124,10 @@ func (c Cards) IsEEEE() bool {
 		return false
 	}
 	return c[0] == c[1] && c[1] == c[2] && c[2] == c[3]
+}
+
+func (c Cards) IsEEEEUpgrade(tile int) bool {
+	return c.IsDDD() && c[0] == tile
 }
 
 func (c Cards) IsABC() bool {
