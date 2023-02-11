@@ -105,7 +105,6 @@ func (exc *Exchanger) start(interval int) {
 			cd.restart(true)
 			//牌库摸完了 结束当前回合
 			if t.Tile == -1 {
-				handler.Quit(false)
 				return
 			}
 			handler.Take(t)
@@ -123,9 +122,9 @@ func (exc *Exchanger) start(interval int) {
 			aq.reset()
 			//通知
 			handler.Race(r)
-		case _ = <-exc.winCh:
+		case w := <-exc.winCh:
 			//通知当局游戏结束
-			handler.Quit(true)
+			handler.Win(w)
 			return
 		case a := <-exc.ackCh:
 			//过期则忽略当前事件
@@ -215,6 +214,9 @@ func (exc *Exchanger) Quit() {
 	close(exc.ackCh)
 	exc._cd.stop()
 	exc._isRunning = false
+
+	//通知
+	exc.handler.Quit(true)
 }
 
 type countdown struct {
