@@ -125,9 +125,9 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 		options = takeResult.Options
 		break
 	case ploy.NextPut:
-		//出牌入口
+		//继续本回合内判定
 		continueTake = -1
-		options = append(options, &api.RaceOption{RaceType: api.PutRace, Tiles: nil})
+		options = DoRacePre(roundCtx, own, &api.RacePreview{RoomId: body.RoomId, Target: own.Idx, Tile: targetTile})
 		break
 	default:
 		return nil, errors.New("后置事件非法")

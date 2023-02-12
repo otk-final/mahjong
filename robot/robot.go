@@ -1,6 +1,7 @@
 package robot
 
 import (
+	"log"
 	"mahjong/server/api"
 	"mahjong/service/engine"
 	"mahjong/service/store"
@@ -15,25 +16,31 @@ type task struct {
 
 var eventAfterDelay = 3 * time.Second
 
-var robotCh1 = make(chan *task, 4)
-var robotCh2 = make(chan *task, 4)
-var robotCh3 = make(chan *task, 4)
+var robotCh1 = make(chan *task, 3)
+var robotCh2 = make(chan *task, 3)
+var robotCh3 = make(chan *task, 3)
 
 func init() {
 	route := func(mind engine.NotifyHandle, webEvent api.WebEvent, webPayload any) {
 		switch webEvent {
 		case api.TakeEvent:
 			mind.Take(webPayload.(*api.TakePayload))
+			break
 		case api.PutEvent:
 			mind.Put(webPayload.(*api.PutPayload))
+			break
 		case api.RaceEvent:
 			mind.Race(webPayload.(*api.RacePayload))
+			break
 		case api.WinEvent:
 			mind.Win(webPayload.(*api.WinPayload))
+			break
 		case api.AckEvent:
 			mind.Ack(webPayload.(*api.AckPayload))
+			break
 		case api.TurnEvent:
 			mind.Turn(webPayload.(*api.TurnPayload), false)
+			break
 		}
 	}
 	//异步处理
@@ -66,9 +73,11 @@ func Post[T any](roomId string, roboter *api.Roboter, packet *api.WebPacket[T]) 
 	if roboter.Level == 1 {
 		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 2 {
-		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
+		robotCh2 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 3 {
-		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
+		robotCh3 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
+	} else {
+		log.Printf("roboter config illegals")
 	}
 }
 

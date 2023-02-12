@@ -125,7 +125,7 @@ func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*
 	robots := make([]*api.Roboter, 0)
 	for i := 0; i < body.Nums-1; i++ {
 		roboter := &api.Roboter{
-			Player: &api.Player{Idx: i + 1, UId: "robot1", UName: fmt.Sprintf("机器人%d号", i+1), Alias: "闲家"},
+			Player: &api.Player{Idx: i + 1, UId: "robot1", UName: fmt.Sprintf("%d号", i+1), Alias: "闲家"},
 			Level:  i + 1,
 		}
 		robots = append(robots, roboter)

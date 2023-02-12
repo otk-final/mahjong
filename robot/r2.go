@@ -72,9 +72,11 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 		//下个事件
 		next, err := service.DoRace(m.roundCtx, m.roboter.Player, raceArg)
 		if err != nil {
-			log.Printf("动作：%s 推荐：%v error", api.RaceNames[raceOps.RaceType], raceOps.Tiles)
+			log.Printf("错误")
 			return
 		}
+
+		log.Printf("下一次动作：%s 推荐：%v ", m.roboter.UName, next.Options)
 
 		//递归继续处理
 		m.doOptions(next.Options)
@@ -89,36 +91,9 @@ func (m *mindLevel2) optimizePut(ownIdx int) {
 	hands := ops.GetTiles(ownIdx).Hands
 	sort.Ints(hands)
 
-	//不拆句子，出废牌
-	isolates := make([]int, 0)
-	//检查 前n-1张牌是否连续
-	for i := 0; i < len(hands)-1; i++ {
-		//检查相邻牌 ,顺子或者对子
-		t := hands[i]
-		if t == hands[i+1] || t == t+1 {
-			continue
-		}
-		//判定是否能单独出牌
-		if provider.CanPut(ownIdx, t) {
-			isolates = append(isolates, t)
-		}
-	}
-
-	var targetPut int
-	var err error
-	if len(isolates) > 0 {
-		//去最大的
-		targetPut = isolates[len(isolates)-1]
-	} else {
-		//随机
-		targetPut, err = randomCanPut(ownIdx, hands, provider)
-	}
-	if err != nil {
-		log.Printf("错误：%v", hands)
-		return
-	}
-
-	log.Printf("机器人[%d] 开始出牌 %v", m.roboter.Idx, targetPut)
+	//随机
+	targetPut, _ := randomCanPut(ownIdx, hands, provider)
+	log.Printf("机器人[%d] 开始随机出牌 %v", m.roboter.Idx, targetPut)
 	time.AfterFunc(eventAfterDelay, func() {
 		//出牌
 		put := &api.PutPayload{Who: ownIdx, Tile: targetPut}

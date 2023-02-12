@@ -48,7 +48,7 @@ func NewProvider(mode string) GameDefine {
 	switch mode {
 	case "std": //标准
 		return newBaseProvider()
-	case "lai": //赖子
+	case "lai-you", "lai-gang", "lai-huang", "lai-unique": //赖子
 		return newLaiProvider()
 	case "k5x": //卡5星
 		break

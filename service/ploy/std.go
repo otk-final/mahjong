@@ -171,7 +171,7 @@ type eeeeUpgradeEvaluation struct {
 }
 
 func (eval *eeeeUpgradeEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
-	return len(racePart) == 2
+	return len(racePart) == 1
 }
 
 func (eval *eeeeUpgradeEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
