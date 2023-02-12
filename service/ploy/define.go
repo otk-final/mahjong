@@ -26,10 +26,22 @@ type GameDefine interface {
 	Quit()
 }
 
+type RaceNext int
+
+const (
+	NextQuit RaceNext = 0
+	NextTake RaceNext = 1
+	NextPut  RaceNext = 2
+)
+
 // RaceEvaluator 碰，吃，杠，胡...评估
 type RaceEvaluator interface {
+	// Valid 验证
+	Valid(ctx *engine.RoundCtx, raceIdx int, puts mj.Cards, whoIdx int, whoTile int) bool
 	// Eval 可行判断
-	Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards)
+	Eval(ctx *engine.RoundCtx, raceIdx int, hands mj.Cards, whoIdx int, whoTile int) (bool, []mj.Cards)
+	// Next 后置事件
+	Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext
 }
 
 func NewProvider(mode string) GameDefine {

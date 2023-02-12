@@ -102,6 +102,14 @@ type abcEvaluation struct {
 	illegals mj.Cards
 }
 
+func (eval *abcEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return len(racePart) == 2
+}
+
+func (eval *abcEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextPut
+}
+
 func isUpperIdx(mineIdx, whoIdx, members int) bool {
 	//只能吃上家出的牌
 	limit := mineIdx - whoIdx
@@ -138,6 +146,14 @@ type dddEvaluation struct {
 	illegals mj.Cards
 }
 
+func (eval *dddEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return len(racePart) == 2
+}
+
+func (eval *dddEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextPut
+}
+
 func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能碰自己打的牌
 	if raceIdx == whoIdx || eval.illegals.Index(tile) != -1 {
@@ -152,6 +168,14 @@ func (eval *dddEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Card
 
 // 杠（碰升级）
 type eeeeUpgradeEvaluation struct {
+}
+
+func (eval *eeeeUpgradeEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return len(racePart) == 2
+}
+
+func (eval *eeeeUpgradeEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextTake
 }
 
 func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
@@ -178,6 +202,14 @@ func (eval *eeeeUpgradeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles
 type eeeeOwnEvaluation struct {
 }
 
+func (eval *eeeeOwnEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return len(racePart) == 4
+}
+
+func (eval *eeeeOwnEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextTake
+}
+
 func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	if raceIdx != whoIdx {
 		return false, nil
@@ -202,6 +234,14 @@ func (eval *eeeeOwnEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.
 type eeeeEvaluation struct {
 }
 
+func (eval *eeeeEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return len(racePart) == 3
+}
+
+func (eval *eeeeEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextTake
+}
+
 func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 	//不能杠自己打的牌
 	if raceIdx == whoIdx {
@@ -218,6 +258,14 @@ func (eval *eeeeEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Car
 type winEvaluation struct {
 }
 
+func (eval *winEvaluation) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return true
+}
+
+func (eval *winEvaluation) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextQuit
+}
+
 func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
 
 	var winIntact mj.Cards
@@ -225,7 +273,7 @@ func (eval *winEvaluation) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Card
 		//自摸
 		winIntact = tiles
 	} else {
-		//点炮
+		//别人点炮
 		winIntact = append(tiles, tile)
 	}
 

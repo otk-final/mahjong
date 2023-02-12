@@ -116,10 +116,8 @@ func (lp *LaiProvider) Handles() map[api.RaceType]RaceEvaluator {
 		api.DDDRace: &dddEvaluation{
 			illegals: illegals,
 		},
-		api.ABCRace: &abcWithLai{
-			tileLai:       lp.tileLai,
-			tileGui:       lp.tileGui,
-			abcEvaluation: abcEvaluation{illegals: illegals},
+		api.ABCRace: &abcEvaluation{
+			illegals: illegals,
 		},
 		api.EEEERace:        &eeeeEvaluation{},
 		api.EEEEOwnRace:     &eeeeOwnEvaluation{},
@@ -147,28 +145,16 @@ func (lp *LaiProvider) Handles() map[api.RaceType]RaceEvaluator {
 	return evalMap
 }
 
-type abcWithLai struct {
-	tileLai int
-	tileGui int
-	abcEvaluation
-}
-
-func (eval *abcWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
-	ok, effects := eval.abcEvaluation.Eval(ctx, raceIdx, tiles, whoIdx, tile)
-	if ok {
-		//不能用含有癞子牌去吃
-		for _, item := range effects {
-			if item.Index(eval.tileLai) != -1 {
-				return false, nil
-			}
-		}
-		return true, effects
-	}
-	return false, nil
-}
-
 type fixWithLai struct {
 	tile int
+}
+
+func (eval *fixWithLai) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	return len(racePart) == 1
+}
+
+func (eval *fixWithLai) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextTake
 }
 
 func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {
@@ -186,6 +172,19 @@ func (eval *fixWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, 
 
 type caoWithLai struct {
 	tile int
+}
+
+func (eval *caoWithLai) Valid(ctx *engine.RoundCtx, raceIdx int, racePart mj.Cards, whoIdx int, whoTile int) bool {
+	//自己回合出3张
+	if raceIdx == whoIdx {
+		return len(racePart) == 3
+	}
+	//他人回合出两张
+	return len(racePart) == 2
+}
+
+func (eval *caoWithLai) Next(ctx *engine.RoundCtx, raceIdx int, whoIdx int) RaceNext {
+	return NextPut
 }
 
 func (eval *caoWithLai) Eval(ctx *engine.RoundCtx, raceIdx int, tiles mj.Cards, whoIdx int, tile int) (bool, []mj.Cards) {

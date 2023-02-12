@@ -58,7 +58,7 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 		_, _ = service.DoWin(m.roundCtx, m.roboter.Player)
 	} else if put, _ := hasOption(options, api.PutRace); put && len(options) == 1 {
 		//出牌
-		m.isolatePut(m.roboter.Idx)
+		m.optimizePut(m.roboter.Idx)
 	} else {
 
 		//当前事件
@@ -76,12 +76,12 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 			return
 		}
 
-		//递归处理
+		//递归继续处理
 		m.doOptions(next.Options)
 	}
 }
 
-func (m *mindLevel2) isolatePut(ownIdx int) {
+func (m *mindLevel2) optimizePut(ownIdx int) {
 
 	provider := ploy.RenewProvider(m.roundCtx)
 	//获取手牌

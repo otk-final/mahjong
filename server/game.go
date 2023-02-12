@@ -103,7 +103,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		userTiles = append(userTiles, tiles)
 	}
 
-	usableRaces := make([]*api.RaceOption, 0)
+	options := make([]*api.RaceOption, 0)
 
 	// 还原牌局
 	ops := roundCtx.Operating()
@@ -120,7 +120,6 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	//非本回合，已出牌，触发判定
 	eachCheck := recentIdx != own.Idx && recentAction == engine.RecentPut
 	if ownCheck || eachCheck {
-
 		//目标牌
 		recenter := ops.Recenter(recentIdx)
 		raceTile := -1
@@ -129,24 +128,17 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		} else {
 			raceTile = recenter.Put()
 		}
-
 		//判定
 		raceQuery := &api.RacePreview{
 			RoomId: body.RoomId,
 			Target: recentIdx,
 			Tile:   raceTile,
 		}
-		usableRaces = service.DoRacePre(roundCtx, own, raceQuery)
-	} else {
-		//如果是本回合，兜底显示出牌入口
-		if turnIdx == own.Idx {
-			usableRaces = append(usableRaces, &api.RaceOption{RaceType: api.PassRace})
-		}
+		options = service.DoRacePre(roundCtx, own, raceQuery)
 	}
 
 	//每种玩法，独立逻辑处理
 	provider := ploy.RenewProvider(roundCtx)
-
 	return &api.GameInf{
 		GamePayload: &api.GamePayload{
 			TurnIdx:   turnIdx,
@@ -156,7 +148,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 			Players:   userTiles,
 			Extras:    provider.Extras(),
 		},
-		Options: usableRaces,
+		Options: options,
 		RoomId:  body.RoomId,
 	}, nil
 }

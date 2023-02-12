@@ -83,7 +83,12 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 	} else {
 		targetTile = recenter.Put()
 	}
+
+	//判断出牌数量是否合理
 	racePart := body.Tiles
+	if !eval.Valid(roundCtx, own.Idx, racePart, recentIdx, targetTile) {
+		return nil, errors.New("出牌数量不符")
+	}
 
 	//判定
 	hands := ops.GetTiles(own.Idx).Hands.Clone()
@@ -103,12 +108,14 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 		Tile:     targetTile,
 		Interval: api.TurnInterval,
 	})
+	//后置事件
+	next := eval.Next(roundCtx, own.Idx, recentIdx)
 
 	//后置事件
 	var options []*api.RaceOption
 	var continueTake int
-	switch body.RaceType {
-	case api.EEEERace, api.EEEEUpgradeRace, api.EEEEOwnRace, api.LaiRace, api.GuiRace:
+	switch next {
+	case ploy.NextTake:
 		//从后往前摸牌
 		takeResult := DoTake(roundCtx, own, &api.TakeParameter{RoomId: body.RoomId, Direction: -1})
 		if takeResult.Take == -1 {
@@ -116,13 +123,16 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 		}
 		continueTake = takeResult.Take
 		options = takeResult.Options
-	case api.ABCRace, api.DDDRace, api.CaoRace:
+		break
+	case ploy.NextPut:
+		//出牌入口
 		continueTake = -1
-		//吃，碰 , 朝 渲染出牌入口
 		options = append(options, &api.RaceOption{RaceType: api.PutRace, Tiles: nil})
+		break
 	default:
-		return nil, errors.New("事件非法")
+		return nil, errors.New("后置事件非法")
 	}
+
 	//最新持牌
 	return &api.RaceResult{
 		PlayerTiles:  ops.GetTiles(own.Idx),
