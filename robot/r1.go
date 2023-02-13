@@ -2,13 +2,11 @@ package robot
 
 import (
 	"errors"
-	"log"
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/service"
 	"mahjong/service/ploy"
 	"math/rand"
-	"time"
 )
 
 //最初级，从不判定，摸什么出什么
@@ -22,8 +20,7 @@ func (m *mindLevel1) Put(event *api.PutPayload) {
 		return
 	}
 	//直接忽略
-	ackId := m.roundCtx.Exchange().CurrentAckId()
-	m.roundCtx.Exchange().PostAck(&api.AckPayload{Who: m.roboter.Idx, AckId: ackId})
+	service.DoIgnore(m.roundCtx, m.roboter.Player)
 }
 
 func randomCanPut(pIdx int, hands mj.Cards, provider ploy.GameDefine) (int, error) {
@@ -41,32 +38,15 @@ func randomCanPut(pIdx int, hands mj.Cards, provider ploy.GameDefine) (int, erro
 }
 
 func (m *mindLevel1) Turn(event *api.TurnPayload, ok bool) {
-	provider := ploy.RenewProvider(m.roundCtx)
-	//摸牌
-	takeResult := service.DoTake(m.roundCtx, m.roboter.Player, &api.TakeParameter{
-		RoomId:    m.roomId,
-		Direction: 1,
-	})
-	ownIdx := event.Who
-
-	//不能出，则从手牌中随机选择
-	targetPut := takeResult.Take
-	var err error
-	if !provider.CanPut(ownIdx, targetPut) {
-		hands := m.roundCtx.Operating().GetTiles(ownIdx).Hands
-		targetPut, err = randomCanPut(ownIdx, hands, provider)
-		if err != nil {
-			log.Printf("错误：%v", hands)
-			return
-		}
+	if event.Who != m.roboter.Idx {
+		return
 	}
+	//摸牌
+	takeResult := service.DoTake(m.roundCtx, m.roboter.Player, &api.TakeParameter{RoomId: m.roomId, Direction: 1})
+	if takeResult.Take == -1 {
+		return
+	}
+	//出牌
+	m.randomPut(m.roboter.Idx)
 
-	put := &api.PutPayload{Who: m.roboter.Idx, Tile: targetPut}
-	//延迟3秒出牌
-	time.AfterFunc(eventAfterDelay, func() {
-		service.DoPut(m.roundCtx, m.roboter.Player, &api.PutParameter{
-			PutPayload: put,
-			RoomId:     m.roomId,
-		})
-	})
 }

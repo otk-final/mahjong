@@ -10,6 +10,9 @@ type GameConfigure struct {
 	Custom map[string]any `json:"custom"` //自定义参数
 }
 
+type VisitorParameter struct {
+}
+
 // JoinRoom 加入房间
 type JoinRoom struct {
 	RoomId string `json:"roomId"`
@@ -33,6 +36,11 @@ type Player struct {
 type Roboter struct {
 	*Player
 	Level int
+}
+
+type Visitor struct {
+	*Player
+	Token string `json:"token"`
 }
 
 // RoomInf 房间信息

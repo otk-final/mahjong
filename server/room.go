@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"hash/crc32"
+	"log"
 	"mahjong/server/api"
 	"mahjong/server/broadcast"
 	"mahjong/server/wrap"
@@ -104,6 +105,10 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 //  退出房间
 func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.NoResp, error) {
 
+	//用户信息
+	header := wrap.GetHeader(r)
+
+	store.FreeVisitor(header.UserId)
 	return api.Empty, nil
 }
 
@@ -140,4 +145,9 @@ func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*
 		Players: pos.Joined(),
 		Config:  body,
 	}, nil
+}
+
+func visitor(w http.ResponseWriter, r *http.Request, body *api.VisitorParameter) (*api.Visitor, error) {
+	log.Printf("获取游客信息：%s", r.RemoteAddr)
+	return store.NewVisitor(r)
 }

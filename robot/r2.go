@@ -5,9 +5,7 @@ import (
 	"mahjong/mj"
 	"mahjong/server/api"
 	"mahjong/service"
-	"mahjong/service/ploy"
 	"sort"
-	"time"
 )
 
 //中级，优先出废牌，能胡则胡
@@ -38,11 +36,11 @@ func (m *mindLevel2) Turn(event *api.TurnPayload, ok bool) {
 	if event.Who != m.roboter.Idx {
 		return
 	}
-
 	//摸牌
 	takeResult := service.DoTake(m.roundCtx, m.roboter.Player, &api.TakeParameter{RoomId: m.roomId, Direction: 1})
-	log.Printf("机器人[%d] 开始摸牌 %v", m.roboter.Idx, takeResult.Take)
-
+	if takeResult.Take == -1 {
+		return
+	}
 	//出牌
 	m.doOptions(takeResult.Options)
 }
@@ -58,7 +56,7 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 		_, _ = service.DoWin(m.roundCtx, m.roboter.Player)
 	} else if put, _ := hasOption(options, api.PutRace); put && len(options) == 1 {
 		//出牌
-		m.optimizePut(m.roboter.Idx)
+		m.randomPut(m.roboter.Idx)
 		return
 	} else {
 
@@ -83,22 +81,4 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 		m.doOptions(next.Options)
 		return
 	}
-}
-
-func (m *mindLevel2) optimizePut(ownIdx int) {
-
-	provider := ploy.RenewProvider(m.roundCtx)
-	//获取手牌
-	ops := m.roundCtx.Operating()
-	hands := ops.GetTiles(ownIdx).Hands
-	sort.Ints(hands)
-
-	//随机
-	targetPut, _ := randomCanPut(ownIdx, hands, provider)
-	log.Printf("机器人[%d] 开始随机出牌 %v", m.roboter.Idx, targetPut)
-	time.AfterFunc(eventAfterDelay, func() {
-		//出牌
-		put := &api.PutPayload{Who: ownIdx, Tile: targetPut}
-		service.DoPut(m.roundCtx, m.roboter.Player, &api.PutParameter{PutPayload: put, RoomId: m.roomId})
-	})
 }

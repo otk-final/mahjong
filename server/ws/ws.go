@@ -6,8 +6,8 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"mahjong/server/api"
+	"mahjong/service/store"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 )
@@ -44,19 +44,23 @@ func Route() http.HandlerFunc {
 		//获取认证信息
 		var identity *api.IdentityHeader
 		if len(subProtocolsHeaders) > 0 {
-			un, _ := url.QueryUnescape(subProtocolsHeaders[1])
 			identity = &api.IdentityHeader{
-				UserId:   subProtocolsHeaders[0],
-				UserName: un,
-				Token:    subProtocolsHeaders[2],
+				UserId: subProtocolsHeaders[0],
+				Token:  subProtocolsHeaders[1],
 			}
 		} else {
 			identity = &api.IdentityHeader{
-				UserId:   request.Header.Get("userId"),
-				UserName: request.Header.Get("userName"),
-				Token:    request.Header.Get("token"),
+				UserId: request.Header.Get("userId"),
+				Token:  request.Header.Get("token"),
 			}
 		}
+
+		//验证
+		ok, vs := store.IsValid(identity.UserId, identity.Token)
+		if !ok {
+			return
+		}
+		identity.UserName = vs.UName
 
 		//缓存
 		wsc := &netChan{

@@ -3,8 +3,11 @@ package robot
 import (
 	"log"
 	"mahjong/server/api"
+	"mahjong/service"
 	"mahjong/service/engine"
+	"mahjong/service/ploy"
 	"mahjong/service/store"
+	"sort"
 	"time"
 )
 
@@ -70,12 +73,15 @@ func Post[T any](roomId string, roboter *api.Roboter, packet *api.WebPacket[T]) 
 
 	//default
 	dm := &minder{roundCtx: roundCtx, roomId: roomId, roboter: roboter}
+	l1 := &mindLevel1{minder: dm}
+	l2 := &mindLevel2{minder: dm}
+	l3 := &mindLevel3{minder: dm, level1: l1, level2: l2}
 	if roboter.Level == 1 {
-		robotCh1 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
+		robotCh1 <- &task{consumer: l1, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 2 {
-		robotCh2 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
+		robotCh2 <- &task{consumer: l2, webEvent: packet.Event, webPayload: packet.Payload}
 	} else if roboter.Level == 3 {
-		robotCh3 <- &task{consumer: &mindLevel2{minder: dm}, webEvent: packet.Event, webPayload: packet.Payload}
+		robotCh3 <- &task{consumer: l3, webEvent: packet.Event, webPayload: packet.Payload}
 	} else {
 		log.Printf("roboter config illegals")
 	}
@@ -106,4 +112,22 @@ func (m *minder) Turn(event *api.TurnPayload, ok bool) {
 }
 
 func (m *minder) Quit(reason string) {
+}
+
+func (m *minder) randomPut(ownIdx int) {
+
+	provider := ploy.RenewProvider(m.roundCtx)
+	//获取手牌
+	ops := m.roundCtx.Operating()
+	hands := ops.GetTiles(ownIdx).Hands
+	sort.Ints(hands)
+
+	//随机
+	targetPut, _ := randomCanPut(ownIdx, hands, provider)
+	log.Printf("机器人[%d] 开始随机出牌 %v", m.roboter.Idx, targetPut)
+	time.AfterFunc(eventAfterDelay, func() {
+		//出牌
+		put := &api.PutPayload{Who: ownIdx, Tile: targetPut}
+		service.DoPut(m.roundCtx, m.roboter.Player, &api.PutParameter{PutPayload: put, RoomId: m.roomId})
+	})
 }

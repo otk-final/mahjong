@@ -18,25 +18,26 @@ func Apis() http.Handler {
 
 	//房间
 	room := muxRouter.Methods("POST").PathPrefix("/room").Subrouter()
-	room.Path("/create").HandlerFunc(wrap.NewWrapper(create).Func())
-	room.Path("/join").HandlerFunc(wrap.NewWrapper(join).Func())
-	room.Path("/exit").HandlerFunc(wrap.NewWrapper(exit).Func())
-	room.Path("/compute").HandlerFunc(wrap.NewWrapper(compute).Func())
+	room.Path("/create").HandlerFunc(wrap.NewWrapper(create, true).Func())
+	room.Path("/join").HandlerFunc(wrap.NewWrapper(join, true).Func())
+	room.Path("/exit").HandlerFunc(wrap.NewWrapper(exit, true).Func())
+	room.Path("/compute").HandlerFunc(wrap.NewWrapper(compute, true).Func())
+	room.Path("/visitor").HandlerFunc(wrap.NewWrapper(visitor, false).Func())
 
 	//游戏
 	game := muxRouter.Methods("POST").PathPrefix("/game").Subrouter()
-	game.Path("/start").HandlerFunc(wrap.NewWrapper(start).Func())
-	game.Path("/load").HandlerFunc(wrap.NewWrapper(load).Func())
-	game.Path("/robot").HandlerFunc(wrap.NewWrapper(robot).Func())
+	game.Path("/start").HandlerFunc(wrap.NewWrapper(start, true).Func())
+	game.Path("/load").HandlerFunc(wrap.NewWrapper(load, true).Func())
+	game.Path("/robot").HandlerFunc(wrap.NewWrapper(robot, true).Func())
 
 	//玩家事件
 	play := muxRouter.Methods("POST").PathPrefix("/play").Subrouter()
-	play.Path("/take").HandlerFunc(wrap.NewWrapper(take).Func())
-	play.Path("/put").HandlerFunc(wrap.NewWrapper(put).Func())
-	play.Path("/race").HandlerFunc(wrap.NewWrapper(race).Func())
-	play.Path("/race-pre").HandlerFunc(wrap.NewWrapper(racePre).Func())
-	play.Path("/win").HandlerFunc(wrap.NewWrapper(win).Func())
-	play.Path("/ignore").HandlerFunc(wrap.NewWrapper(ignore).Func())
+	play.Path("/take").HandlerFunc(wrap.NewWrapper(take, true).Func())
+	play.Path("/put").HandlerFunc(wrap.NewWrapper(put, true).Func())
+	play.Path("/race").HandlerFunc(wrap.NewWrapper(race, true).Func())
+	play.Path("/race-pre").HandlerFunc(wrap.NewWrapper(racePre, true).Func())
+	play.Path("/win").HandlerFunc(wrap.NewWrapper(win, true).Func())
+	play.Path("/ignore").HandlerFunc(wrap.NewWrapper(ignore, true).Func())
 
 	//websocket链接
 	muxRouter.Handle("/ws/{RoomId}", ws.Route())

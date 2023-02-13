@@ -7,8 +7,8 @@ import (
 	"github.com/unrolled/render"
 	"io/ioutil"
 	"mahjong/server/api"
+	"mahjong/service/store"
 	"net/http"
-	"net/url"
 )
 
 var respRender = render.New()
@@ -16,7 +16,8 @@ var respRender = render.New()
 type AnyFunc[T any, R any] func(http.ResponseWriter, *http.Request, T) (R, error)
 
 type AnyHandler[T any, R any] struct {
-	fn AnyFunc[T, R]
+	fn         AnyFunc[T, R]
+	permission bool
 }
 
 type AnyResp[T any] struct {
@@ -50,14 +51,23 @@ func (receiver AnyHandler[T, R]) Func() http.HandlerFunc {
 		err = json.Unmarshal(bodyByte, &t)
 		if err != nil {
 			_ = respRender.Text(writer, 500, "api json unmarshal error :"+err.Error())
+			return
 		}
 
 		//header
-		un, _ := url.QueryUnescape(request.Header.Get("userName"))
 		apiHeader := &api.IdentityHeader{
-			UserId:   request.Header.Get("userId"),
-			UserName: un,
-			Token:    request.Header.Get("token"),
+			UserId: request.Header.Get("userId"),
+			Token:  request.Header.Get("token"),
+		}
+
+		//需要验证用户信息
+		if receiver.permission {
+			ok, vs := store.IsValid(apiHeader.UserId, apiHeader.Token)
+			if !ok {
+				_ = respRender.Text(writer, 500, "用户信息错误")
+				return
+			}
+			apiHeader.UserName = vs.UName
 		}
 
 		request = request.WithContext(context.WithValue(request.Context(), "header", apiHeader))
@@ -87,9 +97,10 @@ func Render() *render.Render {
 	return respRender
 }
 
-func NewWrapper[T any, R any](fn AnyFunc[T, R]) AnyHandler[T, R] {
+func NewWrapper[T any, R any](fn AnyFunc[T, R], p bool) AnyHandler[T, R] {
 	return AnyHandler[T, R]{
-		fn: fn,
+		fn:         fn,
+		permission: p,
 	}
 }
 
