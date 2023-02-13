@@ -35,7 +35,7 @@ type NotifyHandle interface {
 	// Turn 轮转
 	Turn(event *api.TurnPayload, ok bool)
 	//Quit 退出
-	Quit(ok bool)
+	Quit(reason string)
 }
 
 // 回执队列
@@ -91,7 +91,7 @@ func (exc *Exchanger) start(interval int) {
 	exc._ack = aq
 
 	//释放
-	defer exc.Quit()
+	defer exc.Quit("游戏结束")
 
 	//从庄家开始
 	exc._isRunning = true
@@ -106,10 +106,6 @@ func (exc *Exchanger) start(interval int) {
 			}
 			//从摸牌开始，开始倒计时
 			cd.restart(true)
-			//牌库摸完了 结束当前回合
-			if t.Tile == -1 {
-				return
-			}
 			handler.Take(t)
 		case p, ok := <-exc.putCh:
 			if !ok {
@@ -215,7 +211,7 @@ func (exc *Exchanger) isRunning() bool {
 	return exc._isRunning
 }
 
-func (exc *Exchanger) Quit() {
+func (exc *Exchanger) Quit(reason string) {
 	defer exc.lock.Unlock()
 	exc.lock.Lock()
 
@@ -231,7 +227,7 @@ func (exc *Exchanger) Quit() {
 	exc._isRunning = false
 
 	//通知
-	exc.handler.Quit(true)
+	exc.handler.Quit(reason)
 }
 
 type countdown struct {

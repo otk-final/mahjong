@@ -105,5 +105,5 @@ func (m *minder) Ack(event *api.AckPayload) {
 func (m *minder) Turn(event *api.TurnPayload, ok bool) {
 }
 
-func (m *minder) Quit(ok bool) {
+func (m *minder) Quit(reason string) {
 }

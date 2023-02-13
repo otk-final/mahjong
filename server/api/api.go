@@ -10,18 +10,6 @@ type GameConfigure struct {
 	Custom map[string]any `json:"custom"` //自定义参数
 }
 
-const (
-	AvgPayment    PaymentMode = iota + 1 //AA制
-	MasterPayment                        //房主支付
-	WinPayment                           //庄家支付
-)
-
-type PaymentMode int
-type PaymentConfigure struct {
-	Mode   PaymentMode `json:"mode"`   //支付方式（AA模式，房主买单）
-	Amount int         `json:"amount"` //费用
-}
-
 // JoinRoom 加入房间
 type JoinRoom struct {
 	RoomId string `json:"roomId"`

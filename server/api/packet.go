@@ -17,6 +17,7 @@ const (
 	WinEvent
 	AckEvent
 	TurnEvent
+	QuitEvent
 )
 
 type WebPacket[T any] struct {
@@ -24,6 +25,10 @@ type WebPacket[T any] struct {
 	EventName string   `json:"eventName"`
 	EventId   string   `json:"eventId"`
 	Payload   T        `json:"payload"`
+}
+
+type QuitPayload struct {
+	Reason string `json:"reason"`
 }
 
 type TakePayload struct {

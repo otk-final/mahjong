@@ -24,7 +24,7 @@ func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter)
 
 	//游戏结束
 	if takeTile == -1 {
-		roundCtx.Exchange().Quit()
+		roundCtx.Exchange().Quit("平局")
 	} else {
 		//保存
 		ops.AddTake(own.Idx, takeTile)

@@ -96,8 +96,8 @@ func (h *Handler) Turn(event *api.TurnPayload, ok bool) {
 	Post(h.RoomId, h.getPlayers(), packet)
 }
 
-func (h *Handler) Quit(ok bool) {
-
+func (h *Handler) Quit(reason string) {
+	Post(h.RoomId, h.getPlayers(), api.Packet(api.QuitEvent, "结束", &api.QuitPayload{Reason: reason}))
 }
 
 func Post[T any](roomId string, players []*api.Player, packet *api.WebPacket[T]) {
