@@ -28,7 +28,7 @@ func newLaiProvider(variety string) GameDefine {
 			variety:      variety,
 			BaseProvider: bp,
 			hasGui:       true,
-			noABC:        false,
+			noABC:        true,
 		}
 	case "lai-unique":
 		//一癞到底

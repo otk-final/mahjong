@@ -100,7 +100,10 @@ func (exc *Exchanger) start(interval int) {
 	//堵塞监听
 	for {
 		select {
-		case t := <-exc.takeCh:
+		case t, ok := <-exc.takeCh:
+			if !ok {
+				break
+			}
 			//从摸牌开始，开始倒计时
 			cd.restart(true)
 			//牌库摸完了 结束当前回合
@@ -108,12 +111,18 @@ func (exc *Exchanger) start(interval int) {
 				return
 			}
 			handler.Take(t)
-		case p := <-exc.putCh:
+		case p, ok := <-exc.putCh:
+			if !ok {
+				break
+			}
 			//每当出一张牌，均需等待其他玩家确认或者抢占
 			aq.newAckId()
 			//出牌事件
 			handler.Put(p)
-		case r := <-exc.raceCh:
+		case r, ok := <-exc.raceCh:
+			if !ok {
+				break
+			}
 			//抢占 碰，杠，吃，... 设置当前回合
 			pos.move(r.Who)
 			//开始倒计时
@@ -122,11 +131,17 @@ func (exc *Exchanger) start(interval int) {
 			aq.reset()
 			//通知
 			handler.Race(r)
-		case w := <-exc.winCh:
+		case w, ok := <-exc.winCh:
+			if !ok {
+				break
+			}
 			//通知当局游戏结束
 			handler.Win(w)
 			return
-		case a := <-exc.ackCh:
+		case a, ok := <-exc.ackCh:
+			if !ok {
+				break
+			}
 			//过期则忽略当前事件
 			if a.AckId < aq.incrId() {
 				continue
@@ -146,12 +161,10 @@ func (exc *Exchanger) start(interval int) {
 
 			//并清除待ack队列
 			aq.reset()
-			//倒计
 			cd.restart(false)
 
-			//上一位玩家超时，当局游戏所有操作失效，设置
+			//上一位玩家超时
 			pre := pos.turnIdx
-
 			who := pos.next()
 			//非正常轮转下家
 			handler.Turn(&api.TurnPayload{Pre: pre, Who: who, Interval: interval}, false)

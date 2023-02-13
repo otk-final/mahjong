@@ -59,6 +59,7 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 	} else if put, _ := hasOption(options, api.PutRace); put && len(options) == 1 {
 		//出牌
 		m.optimizePut(m.roboter.Idx)
+		return
 	} else {
 
 		//当前事件
@@ -80,6 +81,7 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 
 		//递归继续处理
 		m.doOptions(next.Options)
+		return
 	}
 }
 
