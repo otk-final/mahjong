@@ -137,3 +137,7 @@ func (c Cards) IsABC() bool {
 	sort.Ints(c)
 	return c[0]+1 == c[1] && c[1]+1 == c[2]
 }
+
+func (c Cards) IsLai(tile int) bool {
+	return len(c) == 1 && c[0] == tile
+}

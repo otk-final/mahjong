@@ -149,7 +149,9 @@ func (exc *Exchanger) start(interval int) {
 			//倒计
 			cd.restart(false)
 
+			//上一位玩家超时，当局游戏所有操作失效，设置
 			pre := pos.turnIdx
+
 			who := pos.next()
 			//非正常轮转下家
 			handler.Turn(&api.TurnPayload{Pre: pre, Who: who, Interval: interval}, false)

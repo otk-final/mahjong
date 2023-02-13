@@ -105,6 +105,10 @@ func (pos *Position) TurnIdx() int {
 	return pos.turnIdx
 }
 
+func (pos *Position) DisableIdx(who int) {
+
+}
+
 func (pos *Position) PreIdx() int {
 	pre := pos.turnIdx - 1
 	if pre < 0 {
