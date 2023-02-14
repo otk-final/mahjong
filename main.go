@@ -19,7 +19,9 @@ var httpAddr = flag.String("addr", ":7070", "")
 var ui embed.FS
 
 func main() {
+	flag.Parse()
 
+	//静态文件
 	subUI, _ := fs.Sub(ui, "ui")
 
 	muxRouter := server.NewApiRouter()
@@ -32,6 +34,6 @@ func main() {
 		WriteTimeout: time.Duration(15) * time.Second,
 		ReadTimeout:  time.Duration(15) * time.Second,
 	}
-	log.Println("api sever start")
+	log.Printf("api sever start addr %s", *httpAddr)
 	log.Fatal(srv.ListenAndServe())
 }
