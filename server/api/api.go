@@ -136,25 +136,17 @@ type PlayerTiles struct {
 	Outs  mj.Cards   `json:"outs"`
 }
 
-func (tile *PlayerTiles) ExplicitCopy(explicit bool) *PlayerTiles {
-
-	tempRaces := make([]mj.Cards, 0)
-	for _, comb := range tile.Races {
-		tempRaces = append(tempRaces, comb.Clone())
+func (p *PlayerTiles) Visibility(ok bool) *PlayerTiles {
+	if ok {
+		return p
 	}
-	temp := &PlayerTiles{
-		Idx:   tile.Idx,
-		Hands: tile.Hands.Clone(),
-		Races: tempRaces,
-		Outs:  tile.Outs.Clone(),
-	}
-	if explicit {
-		return temp
+	return &PlayerTiles{
+		Idx:   p.Idx,
+		Hands: make(mj.Cards, len(p.Hands)),
+		Races: p.Races,
+		Outs:  p.Outs,
 	}
 
-	//屏蔽手牌数据
-	temp.Hands = make(mj.Cards, len(temp.Hands))
-	return temp
 }
 
 //PlayerProfits 玩家收益

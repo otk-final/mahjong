@@ -28,8 +28,8 @@ func DoTake(roundCtx *engine.RoundCtx, own *api.Player, body *api.TakeParameter)
 	} else {
 		//保存
 		ops.AddTake(own.Idx, takeTile)
-		//通知 屏蔽真实牌
-		roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: 0, Remained: takeRemained})
+		//通知
+		roundCtx.Exchange().PostTake(&api.TakePayload{Who: own.Idx, Tile: takeTile, Remained: takeRemained, Hands: ops.GetTiles(own.Idx).Hands.Clone()})
 		//判定
 		options = DoRacePre(roundCtx, own, &api.RacePreview{
 			RoomId: body.RoomId,
@@ -45,8 +45,10 @@ func DoPut(roundCtx *engine.RoundCtx, own *api.Player, body *api.PutParameter) *
 	ops := roundCtx.Operating()
 	//保存
 	ops.AddPut(own.Idx, body.Tile)
+
 	//通知
 	body.Who = own.Idx
+	body.Hands = ops.GetTiles(own.Idx).Hands.Clone()
 	roundCtx.Exchange().PostPut(body.PutPayload)
 	//最新手牌
 	return &api.PutResult{PlayerTiles: ops.GetTiles(own.Idx), Put: body.Tile}
@@ -107,6 +109,7 @@ func DoRace(roundCtx *engine.RoundCtx, own *api.Player, body *api.RaceParameter)
 		Tiles:    raceIntact,
 		Tile:     targetTile,
 		Interval: api.TurnInterval,
+		Hands:    ops.GetTiles(own.Idx).Hands.Clone(),
 	})
 	//后置事件
 	next := eval.Next(roundCtx, own.Idx, recentIdx)

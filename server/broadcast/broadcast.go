@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"encoding/json"
-	"log"
 	"mahjong/robot"
 	"mahjong/server/api"
 	"mahjong/server/ws"
@@ -51,7 +50,11 @@ func (h *Handler) Take(event *api.TakePayload) {
 	for _, roboter := range robots {
 		robot.Post(h.RoomId, roboter, packet)
 	}
-	Post(h.RoomId, h.getPlayers(), packet)
+
+	//判定是否屏蔽掉真实数据
+	PostFunc(h.RoomId, h.Players, func(player *api.Player) *api.WebPacket[*api.TakePayload] {
+		return api.Packet(api.TakeEvent, "摸牌", event.Visibility(event.Who == player.Idx))
+	})
 }
 
 func (h *Handler) Put(event *api.PutPayload) {
@@ -60,7 +63,10 @@ func (h *Handler) Put(event *api.PutPayload) {
 	for _, roboter := range robots {
 		robot.Post(h.RoomId, roboter, packet)
 	}
-	Post(h.RoomId, h.getPlayers(), packet)
+
+	PostFunc(h.RoomId, h.Players, func(player *api.Player) *api.WebPacket[*api.PutPayload] {
+		return api.Packet(api.PutEvent, "打牌", event.Visibility(event.Who == player.Idx))
+	})
 }
 
 func (h *Handler) Race(event *api.RacePayload) {
@@ -69,7 +75,10 @@ func (h *Handler) Race(event *api.RacePayload) {
 	for _, roboter := range robots {
 		robot.Post(h.RoomId, roboter, packet)
 	}
-	Post(h.RoomId, h.getPlayers(), packet)
+
+	PostFunc(h.RoomId, h.Players, func(player *api.Player) *api.WebPacket[*api.RacePayload] {
+		return api.Packet(api.RaceEvent, api.RaceNames[event.RaceType], event.Visibility(event.Who == player.Idx))
+	})
 }
 
 func (h *Handler) Win(event *api.WinPayload) {
@@ -82,13 +91,10 @@ func (h *Handler) Win(event *api.WinPayload) {
 }
 
 func (h *Handler) Ack(event *api.AckPayload) {
-	log.Printf("通知：玩家[%d] pass\n", event.Who)
 	Post(h.RoomId, h.getPlayers(), api.Packet(api.AckEvent, "确认", event))
 }
 
 func (h *Handler) Turn(event *api.TurnPayload, ok bool) {
-	log.Printf("通知：当前回合 玩家[%d]\n", event.Who)
-
 	packet := api.Packet(api.TurnEvent, "轮转", event)
 	if ok, roboter := h.isRobot(event.Who); ok {
 		robot.Post(h.RoomId, roboter, packet)

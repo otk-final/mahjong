@@ -2,19 +2,14 @@ package server
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"mahjong/server/wrap"
 	"mahjong/server/ws"
-	"net/http"
 )
 
 //http api
 var muxRouter = mux.NewRouter()
 
-//跨域规则
-var muxCors = cors.AllowAll()
-
-func Apis() http.Handler {
+func NewApiRouter() *mux.Router {
 
 	//房间
 	room := muxRouter.Methods("POST").PathPrefix("/room").Subrouter()
@@ -41,5 +36,6 @@ func Apis() http.Handler {
 
 	//websocket链接
 	muxRouter.Handle("/ws/{RoomId}", ws.Route())
-	return muxCors.Handler(muxRouter)
+
+	return muxRouter
 }

@@ -73,8 +73,8 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 		}
 		currentIdx := player.Idx
 		for _, user := range joined {
-			tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(currentIdx == user.Idx)
-			startPayload.Players = append(startPayload.Players, tiles)
+			pt := roundCtxOps.GetTiles(user.Idx)
+			startPayload.Players = append(startPayload.Players, pt.Visibility(currentIdx == user.Idx))
 		}
 		return api.Packet(api.BeginEvent, "开始", startPayload)
 	})
@@ -98,9 +98,8 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 	joined := roundCtx.Pos().Joined()
 	userTiles := make([]*api.PlayerTiles, 0)
 	for _, user := range joined {
-		//非自己的牌，查询是否选择明牌
-		tiles := roundCtxOps.GetTiles(user.Idx).ExplicitCopy(own.Idx == user.Idx)
-		userTiles = append(userTiles, tiles)
+		pt := roundCtxOps.GetTiles(user.Idx)
+		userTiles = append(userTiles, pt.Visibility(own.Idx == user.Idx))
 	}
 
 	options := make([]*api.RaceOption, 0)
