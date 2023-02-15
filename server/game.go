@@ -26,7 +26,7 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 
 	//已开始
 	if pos.TurnIdx() != -1 {
-		return api.Empty, nil
+		return nil, errors.New("游戏已开始")
 	}
 
 	//校验用户信息，是否为庄家
