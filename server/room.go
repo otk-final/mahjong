@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/google/uuid"
-	"hash/crc32"
 	"log"
 	"mahjong/server/api"
 	"mahjong/server/broadcast"
@@ -25,11 +23,8 @@ func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*a
 		Alias: "庄家",
 	}
 
-	//生成房间号
-	roomId := roomIdGen()
-
 	//save 配置信息
-	store.CreateRoom(roomId, body)
+	roomId := store.CreateRoom(body)
 
 	//设置庄家，虚位待坐 join
 	pos, _ := engine.NewPosition(body.Nums, master)
@@ -44,12 +39,6 @@ func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*a
 		Players: []*api.Player{},
 		Config:  body,
 	}, nil
-}
-
-// 生成房间号
-func roomIdGen() string {
-	id := crc32.ChecksumIEEE([]byte(uuid.New().String()))
-	return fmt.Sprintf("%d", id)
 }
 
 //  加入房间
@@ -117,8 +106,7 @@ func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*
 	//创建房间
 	header := wrap.GetHeader(r)
 	//生成房间号
-	roomId := roomIdGen()
-	store.CreateRoom(roomId, body)
+	roomId := store.CreateRoom(body)
 
 	//设置座位 庄家 + 机器人
 	master := &api.Player{
