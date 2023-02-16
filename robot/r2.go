@@ -74,9 +74,6 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 			log.Printf("错误")
 			return
 		}
-
-		log.Printf("下一次动作：%s 推荐：%v ", m.roboter.UName, next.Options)
-
 		//递归继续处理
 		m.doOptions(next.Options)
 		return

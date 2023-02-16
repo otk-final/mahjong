@@ -6,6 +6,8 @@ import (
 	"mahjong/server/api"
 	"mahjong/server/ws"
 	"mahjong/service/engine"
+	"mahjong/service/store"
+	"time"
 )
 
 type Handler struct {
@@ -103,6 +105,11 @@ func (h *Handler) Turn(event *api.TurnPayload, ok bool) {
 }
 
 func (h *Handler) Quit(reason string) {
+	//延迟释放内存
+	time.AfterFunc(30*time.Second, func() {
+		store.FreeRoom(h.RoomId)
+	})
+	//通知
 	Post(h.RoomId, h.getPlayers(), api.Packet(api.QuitEvent, "结束", &api.QuitPayload{Reason: reason}))
 }
 

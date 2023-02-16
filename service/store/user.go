@@ -3,6 +3,7 @@ package store
 import (
 	"errors"
 	"github.com/google/uuid"
+	"log"
 	"mahjong/server/api"
 	"net/http"
 	"strings"
@@ -60,6 +61,7 @@ func setFreed(id string) {
 	defer vm.lock.Unlock()
 	vm.lock.Lock()
 
+	log.Printf("free visitor:%s\n", id)
 	delete(vm.visitTime, id)
 	delete(vm.visitors, id)
 }

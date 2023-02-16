@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"hash/crc32"
+	"log"
 	"mahjong/server/api"
 	"mahjong/service/engine"
 	"sync"
@@ -59,4 +60,12 @@ func GetPosition(roomId string) (*engine.Position, error) {
 		return nil, errors.New("not found")
 	}
 	return pos.(*engine.Position), nil
+}
+
+// FreeRoom 清除内存
+func FreeRoom(roomId string) {
+	roomConfigMap.Delete(roomId)
+	posMap.Delete(roomId)
+	roundCtxMap.Delete(roomId)
+	log.Printf("free room %s\n", roomId)
 }

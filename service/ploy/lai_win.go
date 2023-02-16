@@ -93,11 +93,7 @@ func (eval *winWithNotLai) Eval(ctx *engine.RoundCtx, raceIdx int, hands mj.Card
 	}
 
 	//按照标准胡牌判定
-	ok, plans := eval.winEvaluation.Eval(ctx, raceIdx, hands, whoIdx, tile)
-	if ok {
-		return true, plans
-	}
-	return false, nil
+	return eval.winEvaluation.Eval(ctx, raceIdx, hands, whoIdx, tile)
 }
 
 //多个癞子，均可以胡牌 能点炮
