@@ -5,7 +5,7 @@
 
 ### 游戏界面
 
-
+![ui/game.png]()
 
 ### 安装
 
@@ -27,3 +27,4 @@ mac/linux 下载文件 mahjong 直接执行
 浏览器访问 http://localhost:7070
 ```
 
+![ui/home.png]()
