@@ -16,13 +16,13 @@ var muxCors = cors.AllowAll()
 var httpAddr = flag.String("addr", ":7070", "")
 
 //go:embed ui
-var ui embed.FS
+var webUi embed.FS
 
 func main() {
 	flag.Parse()
 
 	//静态文件
-	subUI, _ := fs.Sub(ui, "ui")
+	subUI, _ := fs.Sub(webUi, "ui")
 
 	muxRouter := server.NewApiRouter()
 	muxRouter.PathPrefix("/").Handler(http.FileServer(http.FS(subUI)))
