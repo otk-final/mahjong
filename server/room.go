@@ -2,20 +2,20 @@ package server
 
 import (
 	"fmt"
+	"github.com/otk-final/thf/resp"
 	"log"
 	"mahjong/server/api"
 	"mahjong/server/broadcast"
-	"mahjong/server/wrap"
 	"mahjong/service/engine"
 	"mahjong/service/store"
 	"net/http"
 )
 
 //  创建房间
-func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*api.RoomInf, error) {
+func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) *resp.Entry[*api.RoomInf] {
 
 	//用户信息
-	header := wrap.GetHeader(r)
+	header := GetHeader(r)
 	master := &api.Player{
 		Idx:   0,
 		UId:   header.UserId,
@@ -33,24 +33,24 @@ func create(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*a
 	store.CreatePosition(roomId, pos)
 
 	//房间信息
-	return &api.RoomInf{
+	return resp.NewEntry(&api.RoomInf{
 		RoomId:  roomId,
 		Own:     master,
 		Players: []*api.Player{},
 		Config:  body,
-	}, nil
+	})
 }
 
 //  加入房间
-func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.RoomInf, error) {
+func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) *resp.Entry[*api.RoomInf] {
 
 	//用户信息
-	header := wrap.GetHeader(r)
+	header := GetHeader(r)
 
 	//查询座位信息
 	pos, err := store.GetPosition(body.RoomId)
 	if err != nil {
-		return nil, err
+		return resp.NewError[*api.RoomInf](err)
 	}
 
 	//自动选座 idx = -1
@@ -71,7 +71,7 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 		//入座
 		err = pos.Join(member)
 		if err != nil {
-			return nil, err
+			return resp.NewError[*api.RoomInf](err)
 		}
 
 		//update
@@ -82,29 +82,27 @@ func join(w http.ResponseWriter, r *http.Request, body *api.JoinRoom) (*api.Room
 	}
 
 	//判定游戏是否开始
-	return &api.RoomInf{
+	return resp.NewEntry(&api.RoomInf{
 		RoomId:  body.RoomId,
 		Own:     member,
 		Begin:   pos.TurnIdx() != -1,
 		Players: pos.Joined(),
 		Config:  store.GetRoomConfig(body.RoomId),
-	}, nil
+	})
 }
 
 //  退出房间
-func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) (*api.NoResp, error) {
-
+func exit(w http.ResponseWriter, r *http.Request, body *api.ExitRoom) *resp.Entry[any] {
 	//用户信息
-	header := wrap.GetHeader(r)
-
+	header := GetHeader(r)
 	store.FreeVisitor(header.UserId)
-	return api.Empty, nil
+	return resp.NewAny("exit")
 }
 
 //人机对战
-func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*api.RoomInf, error) {
+func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) *resp.Entry[api.RoomInf] {
 	//创建房间
-	header := wrap.GetHeader(r)
+	header := GetHeader(r)
 	//生成房间号
 	roomId := store.CreateRoom(body)
 
@@ -126,16 +124,20 @@ func compute(w http.ResponseWriter, r *http.Request, body *api.GameConfigure) (*
 	pos, _ := engine.NewPositionRobots(body.Nums, master, robots...)
 	store.CreatePosition(roomId, pos)
 
-	return &api.RoomInf{
+	return resp.NewEntry(api.RoomInf{
 		RoomId:  roomId,
 		Own:     master,
 		Begin:   pos.TurnIdx() != -1,
 		Players: pos.Joined(),
 		Config:  body,
-	}, nil
+	})
 }
 
-func visitor(w http.ResponseWriter, r *http.Request, body *api.VisitorParameter) (*api.Visitor, error) {
+func visitor(w http.ResponseWriter, r *http.Request, body *api.VisitorParameter) *resp.Entry[*api.Visitor] {
 	log.Printf("获取游客信息：%s", r.RemoteAddr)
-	return store.NewVisitor(r)
+	vs, err := store.NewVisitor(r)
+	if err != nil {
+		return resp.NewError[*api.Visitor](err)
+	}
+	return resp.NewEntry(vs)
 }

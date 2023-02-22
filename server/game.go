@@ -2,9 +2,9 @@ package server
 
 import (
 	"errors"
+	"github.com/otk-final/thf/resp"
 	"mahjong/server/api"
 	"mahjong/server/broadcast"
-	"mahjong/server/wrap"
 	"mahjong/service"
 	"mahjong/service/engine"
 	"mahjong/service/ploy"
@@ -13,30 +13,30 @@ import (
 )
 
 //  开始游戏
-func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.NoResp, error) {
+func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) *resp.Entry[any] {
 
 	//用户信息
-	header := wrap.GetHeader(r)
+	header := GetHeader(r)
 
 	//当前就坐信息
 	pos, err := store.GetPosition(body.RoomId)
 	if err != nil {
-		return nil, err
+		return resp.NewError[any](err)
 	}
 
 	//已开始
 	if pos.TurnIdx() != -1 {
-		return nil, errors.New("游戏已开始")
+		return resp.NewError[any](errors.New("游戏已开始"))
 	}
 
 	//校验用户信息，是否为庄家
 	if !pos.IsMaster(header.UserId) {
-		return nil, errors.New("待庄家开启游戏")
+		return resp.NewError[any](errors.New("等待庄家开启游戏"))
 	}
 
 	//判定是否满座
 	if pos.Len() != pos.Num() {
-		return nil, errors.New("待玩家就坐")
+		return resp.NewError[any](errors.New("等待玩家就坐"))
 	}
 	//游戏设置
 	setting := store.GetRoomConfig(body.RoomId)
@@ -78,18 +78,18 @@ func start(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*ap
 		}
 		return api.Packet(api.BeginEvent, "开始", startPayload)
 	})
-	return api.Empty, nil
+	return resp.NewAny("started")
 }
 
 //  查询玩家牌库
-func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api.GameInf, error) {
+func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) *resp.Entry[*api.GameInf] {
 	//用户信息
-	header := wrap.GetHeader(r)
+	header := GetHeader(r)
 
 	//查询上下文
 	roundCtx, err := store.LoadRoundCtx(body.RoomId, header.UserId)
 	if err != nil {
-		return nil, err
+		return resp.NewError[*api.GameInf](err)
 	}
 	own, _ := roundCtx.Player(header.UserId)
 
@@ -138,7 +138,7 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 
 	//每种玩法，独立逻辑处理
 	provider := ploy.RenewProvider(roundCtx)
-	return &api.GameInf{
+	inf := &api.GameInf{
 		GamePayload: &api.GamePayload{
 			TurnIdx:   turnIdx,
 			Interval:  roundCtx.Exchange().TurnTime(),
@@ -149,22 +149,23 @@ func load(w http.ResponseWriter, r *http.Request, body *api.GameParameter) (*api
 		},
 		Options: options,
 		RoomId:  body.RoomId,
-	}, nil
+	}
+	return resp.NewEntry(inf)
 }
 
 //  挂机
-func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) (*api.NoResp, error) {
+func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) *resp.Entry[any] {
 	//用户信息
-	header := wrap.GetHeader(r)
+	header := GetHeader(r)
 	//当前就坐信息
 	pos, err := store.GetPosition(body.RoomId)
 	if err != nil {
-		return nil, err
+		return resp.NewError[any](err)
 	}
 	//是否加入房间
 	joinPlayer, err := pos.Index(header.UserId)
 	if err != nil {
-		return nil, err
+		return resp.NewError[any](err)
 	}
 
 	if body.Open {
@@ -172,5 +173,5 @@ func robot(w http.ResponseWriter, r *http.Request, body *api.RobotParameter) (*a
 	} else {
 		pos.RobotClosed(joinPlayer)
 	}
-	return api.Empty, nil
+	return resp.NewEntry[any]("robot")
 }

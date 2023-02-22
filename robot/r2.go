@@ -65,7 +65,7 @@ func (m *mindLevel2) doOptions(options []*api.RaceOption) {
 			return options[i].RaceType > options[j].RaceType
 		})
 		raceOps := options[0]
-		log.Printf("动作：%s 推荐：%v", api.RaceNames[raceOps.RaceType], raceOps.Tiles)
+		//log.Printf("动作：%s 推荐：%v", api.RaceNames[raceOps.RaceType], raceOps.Tiles)
 		raceArg := &api.RaceParameter{RoomId: m.roomId, RaceType: raceOps.RaceType, Tiles: raceOps.Tiles[0]}
 
 		//下个事件

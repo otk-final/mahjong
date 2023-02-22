@@ -31,8 +31,8 @@ func main() {
 	srv := &http.Server{
 		Handler:      muxCors.Handler(muxRouter),
 		Addr:         *httpAddr,
-		WriteTimeout: time.Duration(15) * time.Second,
-		ReadTimeout:  time.Duration(15) * time.Second,
+		WriteTimeout: time.Duration(30) * time.Second,
+		ReadTimeout:  time.Duration(30) * time.Second,
 	}
 	log.Printf("api sever start addr %s", *httpAddr)
 	log.Fatal(srv.ListenAndServe())
