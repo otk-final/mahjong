@@ -5,7 +5,7 @@
 
 ### 游戏界面
 
-![blob/master/ui/game.png]()
+![图1](https://github.com/otk-final/mahjong/blob/4c098843b73ab83b78112a8545fa25e72af65c09/ui/game.png)
 
 ### 安装
 
@@ -27,4 +27,4 @@ mac/linux 下载文件 mahjong 直接执行
 浏览器访问 http://localhost:7070
 ```
 
-![ui/home.png]()
+![图1](https://github.com/otk-final/mahjong/blob/4c098843b73ab83b78112a8545fa25e72af65c09/ui/home.png)
