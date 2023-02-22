@@ -5,7 +5,7 @@
 
 ### 游戏界面
 
-![ui/game.png]()
+![blob/master/ui/game.png]()
 
 ### 安装
 
