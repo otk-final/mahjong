@@ -7,8 +7,6 @@
 
 
 
-
-
 ### 安装
 
 ```tex
@@ -25,5 +23,7 @@
 windows 下载文件 mahjong.exe 直接执行
 
 mac/linux 下载文件 mahjong 直接执行
+
+浏览器访问 http://localhost:7070
 ```
 
